@@ -1,0 +1,54 @@
+# ============================================================
+# Dataset Configuration
+# ============================================================
+# OpenML dataset IDs and metadata for the 5 selected datasets.
+
+datasets:
+  adult:
+    name: "Adult"
+    abbreviation: "AD"
+    openml_id: 1590
+    target_column: "class"
+    num_samples: 48842
+    positive_rate: 0.24
+    description: "Predict whether income exceeds $50K/yr based on census data"
+
+  income:
+    name: "Income-1995"
+    abbreviation: "IC"
+    openml_id: 1590       # Same underlying data as Adult; see note below
+    target_column: "class"
+    num_samples: 32561
+    positive_rate: 0.24
+    description: "Census income prediction (1995 extraction)"
+    # NOTE: Income-1995 and Adult are closely related datasets from the same
+    # Census source. The paper treats them separately following TransTab's
+    # protocol. We use the TransTab-provided version for Income-1995.
+    use_transtab_source: true
+
+  blastchar:
+    name: "Blastchar"
+    abbreviation: "BL"
+    openml_id: 42178
+    target_column: "Churn"
+    num_samples: 7043
+    positive_rate: 0.27
+    description: "Telco customer churn prediction"
+
+  credit_g:
+    name: "Credit-g"
+    abbreviation: "CG"
+    openml_id: 31
+    target_column: "class"
+    num_samples: 1000
+    positive_rate: 0.70
+    description: "German credit risk classification"
+
+  cylinder_bands:
+    name: "Cylinder-bands"
+    abbreviation: "CB"
+    openml_id: 6332
+    target_column: "band_type"
+    num_samples: 540
+    positive_rate: 0.58
+    description: "Cylinder banding in rotogravure printing"

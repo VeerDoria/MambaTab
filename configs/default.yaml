@@ -1,0 +1,106 @@
+# ============================================================
+# MambaTab Replication - Default Configuration
+# ============================================================
+
+# --- Training Hyperparameters (shared across DL models) ---
+training:
+  max_epochs: 1000
+  early_stopping_patience: 5
+  batch_size: 64
+  learning_rate: 0.0001
+  optimizer: adam
+  scheduler: cosine_annealing
+  num_seeds: 5            # Number of random seeds for repeated evaluation
+  seeds: [0, 1, 2, 3, 4]
+
+# --- Data ---
+data:
+  train_ratio: 0.7
+  val_ratio: 0.1
+  test_ratio: 0.2
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+
+# --- MambaTab-D Defaults ---
+mambatab:
+  embedding_dim: 32         # Embedded representation space
+  ssm_state_dim: 32         # SSM state expansion factor (N)
+  conv_width: 4             # Local convolution width (d_conv)
+  num_blocks: 1             # Number of Mamba blocks (M)
+  block_expansion: 2        # Block expansion factor (kernel size)
+  dropout: 0.0
+
+# --- MambaTab-T Tuned Configurations (from Paper Table VI) ---
+mambatab_t:
+  adult:
+    embedding_dim: 64
+    ssm_state_dim: 64
+    block_expansion: 10
+  income:
+    embedding_dim: 32
+    ssm_state_dim: 64
+    block_expansion: 1
+  blastchar:
+    embedding_dim: 16
+    ssm_state_dim: 4
+    block_expansion: 10
+  credit_g:
+    embedding_dim: 64
+    ssm_state_dim: 16
+    block_expansion: 3
+  cylinder_bands:
+    embedding_dim: 32
+    ssm_state_dim: 8
+    block_expansion: 7
+
+# --- FT-Transformer ---
+ft_transformer:
+  d_model: 64
+  n_heads: 4
+  n_layers: 2
+  d_ffn: 128
+  dropout: 0.1
+  attention_dropout: 0.1
+
+# --- DCN (Deep & Cross Network) ---
+dcn:
+  hidden_dims: [128, 64]
+  num_cross_layers: 2
+  dropout: 0.1
+
+# --- XGBoost ---
+xgboost:
+  n_estimators: 300
+  max_depth: 6
+  learning_rate: 0.1
+  subsample: 0.8
+  colsample_bytree: 0.8
+  eval_metric: "logloss"
+  early_stopping_rounds: 10
+
+# --- Logistic Regression ---
+logistic_regression:
+  max_iter: 1000
+  C: 1.0
+  solver: "lbfgs"
+
+# --- Evaluation ---
+evaluation:
+  primary_metric: "auroc"     # For comparison with paper
+  threshold: 0.5              # For binary predictions
+  metrics:
+    - accuracy
+    - balanced_accuracy
+    - precision
+    - recall
+    - f1_score
+    - auroc
+    - auprc
+    - log_loss
+
+# --- Results ---
+results:
+  base_dir: "results"
+  save_raw: true
+  save_tables: true
+  save_figures: true
