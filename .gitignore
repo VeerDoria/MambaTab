@@ -26,7 +26,15 @@ wheels/
 .coverage
 htmlcov/
 .ipynb_checkpoints
-results/
+
+results/**/*.json
+results/**/raw/
+
+!results/**/figures/**
+!results/**/tables/**
+!results/**/*.csv
+!results/**/*.md
+
 data/raw/
 *.log
 *.pdf
