@@ -79,7 +79,7 @@ def run_single_experiment(
             f"Run download first (e.g. python experiments/run_vanilla.py --download)."
         )
     df = pd.read_csv(csv_path)
-    logger.info(
+    logger.debug(
         f"Loaded {dataset_name} ({len(df)} rows, {df.shape[1]} cols) from {csv_path}"
     )
 
@@ -99,7 +99,7 @@ def run_single_experiment(
     train_df = splits["train"]
     val_df = splits["val"]
     test_df = splits["test"]
-    logger.info(
+    logger.debug(
         f"Split sizes — train: {len(train_df)}, val: {len(val_df)}, test: {len(test_df)}"
     )
 
@@ -111,7 +111,7 @@ def run_single_experiment(
     X_val, y_val = preprocessor.transform(val_df)
     X_test, y_test = preprocessor.transform(test_df)
     num_features = preprocessor.num_features
-    logger.info(f"Preprocessed — num_features: {num_features}")
+    logger.debug(f"Preprocessed — num_features: {num_features}")
 
     # ------------------------------------------------------------------
     # 5. Create model
@@ -121,11 +121,11 @@ def run_single_experiment(
     # ------------------------------------------------------------------
     # 6. Train model (timed)
     # ------------------------------------------------------------------
-    logger.info(f"Training {model_name} on {dataset_name} (seed={seed})...")
+    logger.debug(f"Training {model_name} on {dataset_name} (seed={seed})...")
     t_start = time.time()
     model.fit(X_train, y_train, X_val, y_val, config)
     training_time = time.time() - t_start
-    logger.info(f"Training completed in {training_time:.2f}s")
+    logger.debug(f"Training completed in {training_time:.2f}s")
 
     # ------------------------------------------------------------------
     # 7. Generate predictions on test set
@@ -137,7 +137,7 @@ def run_single_experiment(
     # ------------------------------------------------------------------
     threshold = config.get("evaluation", {}).get("threshold", 0.5)
     metrics = compute_metrics(y_test, y_prob, threshold=threshold)
-    logger.info(
+    logger.debug(
         f"Results — AUROC: {metrics.get('auroc', 'N/A'):.4f}, "
         f"Accuracy: {metrics.get('accuracy', 'N/A'):.4f}"
     )

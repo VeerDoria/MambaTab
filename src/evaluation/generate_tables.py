@@ -70,6 +70,7 @@ def main():
         ("auprc", "AUPRC"),
         ("specificity", "Specificity"),
         ("log_loss", "Log Loss"),
+        ("training_time", "Train Time (s)"),
     ]
 
     out_dir = "results/vanilla/tables"
@@ -89,7 +90,7 @@ def main():
         df = pd.DataFrame(rows)
         df.to_csv(os.path.join(out_dir, f"radar_{abbrev}_table.csv"), index=False)
 
-    for met in ["auroc", "auprc", "accuracy", "f1_score"]:
+    for met in ["auroc", "auprc", "accuracy", "f1_score", "training_time"]:
         rows = []
         for m in models:
             row = {"Model": model_names[m]}
@@ -97,7 +98,10 @@ def main():
                 abbrev = dataset_abbrev[ds]
                 val = data[m][ds].get(met)
                 if val is not None:
-                    row[abbrev] = f"{val['mean']:.4f} ± {val['std']:.4f}"
+                    if met == "training_time":
+                        row[abbrev] = f"{val['mean']:.2f}s ± {val['std']:.2f}s"
+                    else:
+                        row[abbrev] = f"{val['mean']:.4f} ± {val['std']:.4f}"
             rows.append(row)
         df = pd.DataFrame(rows)
         df.to_csv(os.path.join(out_dir, f"{met}_comparison_formatted.csv"), index=False)
@@ -176,6 +180,28 @@ def main():
                     vals.append("-")
             doc.append(f"| **{name}** | {' | '.join(vals)} |")
         doc.append("\n")
+
+    # Section 4: Training Time
+    doc.append("## 4. Training Time Comparison (seconds)\n")
+    doc.append("| Model | AD (Adult) | IC (Income-1995) | BL (Blastchar) | CG (Credit-g) | CB (Cylinder-bands) | Mean Time |")
+    doc.append("| :--- | :---: | :---: | :---: | :---: | :---: | :---: |")
+    for m in models:
+        name = model_names[m]
+        cells = []
+        means = []
+        for ds in datasets:
+            val = data[m][ds].get("training_time")
+            if val is not None:
+                cells.append(f"{val['mean']:.2f}s ± {val['std']:.2f}s")
+                means.append(val["mean"])
+            else:
+                cells.append("-")
+        if means:
+            avg = sum(means) / len(means)
+            doc.append(f"| **{name}** | {' | '.join(cells)} | **{avg:.2f}s** |")
+        else:
+            doc.append(f"| **{name}** | {' | '.join(cells)} | **-** |")
+    doc.append("\n---\n")
 
     summary_md_path = os.path.join(out_dir, "METRICS_SUMMARY.md")
     with open(summary_md_path, "w") as f:

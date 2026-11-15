@@ -62,7 +62,7 @@ def _print_summary_table(
     dataset_names: List[str],
     metric: str = "auroc",
 ) -> None:
-    """Print a formatted AUROC comparison table to the console."""
+    """Print a formatted comparison table to the console."""
     # Determine column widths
     model_col_w = max(20, max(len(m) for m in all_results) + 2)
     ds_col_w = 16
@@ -72,8 +72,9 @@ def _print_summary_table(
         header += f"{ds:>{ds_col_w}}"
     header += f"{'Avg':>{ds_col_w}}"
 
+    unit_label = " (seconds)" if metric == "training_time" else ""
     print("\n" + "=" * len(header))
-    print(f"  {metric.upper()} Comparison Table")
+    print(f"  {metric.upper()}{unit_label} Comparison Table")
     print("=" * len(header))
     print(header)
     print("-" * len(header))
@@ -97,7 +98,10 @@ def _print_summary_table(
                     std = 0.0
 
                 if not np.isnan(mean):
-                    row += f"{mean:>{ds_col_w - 7}.4f}±{std:<5.4f}"
+                    if metric == "training_time":
+                        row += f"{mean:>{ds_col_w - 6}.2f}s±{std:<4.2f}"
+                    else:
+                        row += f"{mean:>{ds_col_w - 7}.4f}±{std:<5.4f}"
                     values.append(mean)
                 else:
                     row += f"{'N/A':>{ds_col_w}}"
@@ -106,7 +110,10 @@ def _print_summary_table(
         # Average across datasets
         if values:
             avg = np.mean(values)
-            row += f"{avg:>{ds_col_w}.4f}"
+            if metric == "training_time":
+                row += f"{avg:>{ds_col_w - 1}.2f}s"
+            else:
+                row += f"{avg:>{ds_col_w}.4f}"
         else:
             row += f"{'N/A':>{ds_col_w}}"
         print(row)
@@ -192,34 +199,42 @@ def run_vanilla_experiments(
 
     failed_runs: List[Dict[str, Any]] = []
 
-    # tqdm is optional but nice to have
+    # tqdm is optional but provides clean in-place progress in terminals and Kaggle/Colab notebooks
     try:
-        from tqdm import tqdm
+        from tqdm.auto import tqdm
     except ImportError:  # pragma: no cover
-        tqdm = None
+        try:
+            from tqdm import tqdm
+        except ImportError:
+            tqdm = None
 
     total_runs = len(model_names) * len(dataset_names) * len(seeds)
-    run_iter = (
+    run_list = [
         (model, dataset, seed)
         for model in model_names
         for dataset in dataset_names
         for seed in seeds
-    )
+    ]
 
+    pbar = None
     if tqdm is not None:
-        run_iter = tqdm(
-            list(run_iter),
+        pbar = tqdm(
+            run_list,
             total=total_runs,
-            desc="Vanilla experiments",
+            desc="Vanilla Benchmark",
             unit="run",
+            dynamic_ncols=True,
         )
+        iterable = pbar
+    else:
+        iterable = run_list
 
-    for model_name, dataset_name, seed in run_iter:
+    for idx, (model_name, dataset_name, seed) in enumerate(iterable, 1):
         run_label = f"{model_name}/{dataset_name}/seed={seed}"
-        if tqdm is not None:
-            run_iter.set_postfix_str(run_label)  # type: ignore[union-attr]
+        if pbar is not None:
+            pbar.set_description(f"Running: {model_name[:12]} on {dataset_name} (s={seed})")
         else:
-            logger.info(f"Running {run_label} ...")
+            print(f"[{idx}/{total_runs}] Running {run_label} ...", flush=True)
 
         try:
             result = run_single_experiment(
@@ -229,6 +244,16 @@ def run_vanilla_experiments(
                 config=config,
             )
             raw_results[model_name][dataset_name].append(result)
+            t_run = result.get("training_time", 0.0)
+            auroc_run = result.get("metrics", {}).get("auroc", 0.0)
+            if pbar is not None:
+                pbar.set_postfix({
+                    "last": f"{model_name[:8]}/{dataset_name[:6]}",
+                    "time": f"{t_run:.2f}s",
+                    "auroc": f"{auroc_run:.4f}",
+                })
+            else:
+                print(f"    -> Done in {t_run:.2f}s | AUROC: {auroc_run:.4f}")
         except Exception:
             tb = traceback.format_exc()
             logger.error(f"FAILED {run_label}:\n{tb}")
@@ -263,7 +288,7 @@ def run_vanilla_experiments(
     # 7. Create and save comparison tables
     # ------------------------------------------------------------------
     try:
-        for metric in ["auroc", "accuracy", "f1_score", "auprc"]:
+        for metric in ["auroc", "accuracy", "f1_score", "auprc", "training_time"]:
             table = create_comparison_table(aggregated, metric=metric)
             table_path = os.path.join(results_dir, f"comparison_{metric}.csv")
             table.to_csv(table_path)
@@ -308,6 +333,7 @@ def run_vanilla_experiments(
     # 10. Print summary to console
     # ------------------------------------------------------------------
     _print_summary_table(aggregated, dataset_names, metric="auroc")
+    _print_summary_table(aggregated, dataset_names, metric="training_time")
 
     if failed_runs:
         print(f"\n⚠  {len(failed_runs)} run(s) failed. See logs for details.")

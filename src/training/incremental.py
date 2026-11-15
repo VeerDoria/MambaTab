@@ -272,43 +272,81 @@ def run_incremental_experiments(
     run_count = 0
     failed_runs = []
 
-    for d_idx, dataset_name in enumerate(datasets, 1):
-        for m_idx, model_name in enumerate(models, 1):
-            for seed in seeds:
-                run_count += 1
-                prefix = f"[{run_count}/{total_runs}] {model_name} on {dataset_name} (seed={seed})"
-                print(f"{prefix} ...", end=" ", flush=True)
+    try:
+        from tqdm.auto import tqdm
+    except ImportError:
+        try:
+            from tqdm import tqdm
+        except ImportError:
+            tqdm = None
 
-                try:
-                    res = run_single_incremental_experiment(
-                        model_name=model_name,
-                        dataset_name=dataset_name,
-                        seed=seed,
-                        config=config,
-                        n_stages=n_stages,
-                        preserve_weights=preserve_weights,
-                    )
-                    raw_results[model_name][dataset_name].append(res)
-                    auroc_val = res["metrics"].get("auroc", 0.0)
-                    acc_val = res["metrics"].get("accuracy", 0.0)
-                    print(f"AUROC: {auroc_val:.4f} | Acc: {acc_val:.4f} ✓")
+    run_list = [
+        (dataset_name, model_name, seed)
+        for dataset_name in datasets
+        for model_name in models
+        for seed in seeds
+    ]
 
-                    # Record stage progression for plotting
-                    for st in res.get("stage_progression", []):
-                        stage_prog_records.append({
-                            "model": model_name,
-                            "dataset": dataset_name,
-                            "seed": seed,
-                            "stage": st["stage"],
-                            "active_features": st["active_features"],
-                            "auroc": st["auroc"],
-                            "accuracy": st["accuracy"],
-                        })
+    pbar = None
+    if tqdm is not None:
+        pbar = tqdm(
+            run_list,
+            total=total_runs,
+            desc="FIL Benchmark",
+            unit="run",
+            dynamic_ncols=True,
+        )
+        iterable = pbar
+    else:
+        iterable = run_list
 
-                except Exception as e:
-                    print(f"FAILED ✗: {e}")
-                    failed_runs.append(f"{model_name}/{dataset_name}/seed={seed}: {e}")
-                    logger.error(f"Error in {prefix}:\n{traceback.format_exc()}")
+    for d_idx, (dataset_name, model_name, seed) in enumerate(iterable, 1):
+        run_count += 1
+        prefix = f"[{run_count}/{total_runs}] {model_name} on {dataset_name} (seed={seed})"
+        if pbar is not None:
+            pbar.set_description(f"FIL: {model_name[:12]} on {dataset_name} (s={seed})")
+        else:
+            print(f"{prefix} ...", end=" ", flush=True)
+
+        try:
+            res = run_single_incremental_experiment(
+                model_name=model_name,
+                dataset_name=dataset_name,
+                seed=seed,
+                config=config,
+                n_stages=n_stages,
+                preserve_weights=preserve_weights,
+            )
+            raw_results[model_name][dataset_name].append(res)
+            auroc_val = res["metrics"].get("auroc", 0.0)
+            acc_val = res["metrics"].get("accuracy", 0.0)
+            t_val = res.get("training_time", 0.0)
+            if pbar is not None:
+                pbar.set_postfix({
+                    "last": f"{model_name[:8]}/{dataset_name[:6]}",
+                    "time": f"{t_val:.2f}s",
+                    "auroc": f"{auroc_val:.4f}",
+                })
+            else:
+                print(f"AUROC: {auroc_val:.4f} | Acc: {acc_val:.4f} ({t_val:.2f}s) ✓")
+
+            # Record stage progression for plotting
+            for st in res.get("stage_progression", []):
+                stage_prog_records.append({
+                    "model": model_name,
+                    "dataset": dataset_name,
+                    "seed": seed,
+                    "stage": st["stage"],
+                    "active_features": st["active_features"],
+                    "auroc": st["auroc"],
+                    "accuracy": st["accuracy"],
+                })
+
+        except Exception as e:
+            if pbar is None:
+                print(f"FAILED ✗: {e}")
+            failed_runs.append(f"{model_name}/{dataset_name}/seed={seed}: {e}")
+            logger.error(f"Error in {prefix}:\n{traceback.format_exc()}")
 
     # Aggregate across seeds
     aggregated_results: Dict[str, Dict[str, Any]] = {
@@ -336,7 +374,7 @@ def run_incremental_experiments(
             logger.warning(f"Could not plot stage progressions: {e}")
 
     # 3. Generate Comparison Tables
-    for metric in ("auroc", "accuracy", "f1_score", "auprc"):
+    for metric in ("auroc", "accuracy", "f1_score", "auprc", "training_time"):
         try:
             df_tab = create_comparison_table(aggregated_results, metric=metric, format="dataframe")
             df_tab.to_csv(os.path.join(save_dir, "tables", f"fil_comparison_{metric}.csv"))
