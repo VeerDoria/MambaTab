@@ -9,7 +9,7 @@ All plotting functions follow a consistent style:
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np

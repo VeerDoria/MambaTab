@@ -18,6 +18,7 @@ def main():
         "mambatab_d",
         "mambatab_t",
         "xgboost",
+        "xgboost_2022",
         "logistic_regression",
         "ft_transformer",
         "dcn",
@@ -26,10 +27,13 @@ def main():
         "mambatab_d": "MambaTab-D",
         "mambatab_t": "MambaTab-T",
         "xgboost": "XGBoost",
+        "xgboost_2022": "XGBoost (2022 Paper)",
         "logistic_regression": "Logistic Regression",
         "ft_transformer": "FT-Transformer",
         "dcn": "DCN",
     }
+    # Filter to models actually present in data
+    models = [m for m in models if m in data]
 
     datasets = ["adult", "income", "blastchar", "credit_g", "cylinder_bands"]
     dataset_names = {
@@ -125,9 +129,13 @@ def main():
     doc.append("| :--- | :---: | :---: | :---: | :---: | :---: | :---: |")
     for m in models:
         name = model_names[m]
-        p_vals = [f"{paper_auroc[name][dataset_abbrev[ds]]:.3f}" for ds in datasets]
+        p_dict = paper_auroc.get(name, paper_auroc.get("XGBoost") if "XGBoost" in name else None)
+        if p_dict is not None:
+            p_vals = [f"{p_dict[dataset_abbrev[ds]]:.3f}" for ds in datasets]
+            doc.append(f"| **{name}** | Paper | {' | '.join(p_vals)} |")
+        else:
+            doc.append(f"| **{name}** | Paper | {' | '.join(['N/A' for _ in datasets])} |")
         o_vals = [f"{data[m][ds]['auroc']['mean']:.3f} ± {data[m][ds]['auroc']['std']:.3f}" for ds in datasets]
-        doc.append(f"| **{name}** | Paper | {' | '.join(p_vals)} |")
         doc.append(f"| | Replicated | {' | '.join(o_vals)} |")
     doc.append("\n---\n")
 

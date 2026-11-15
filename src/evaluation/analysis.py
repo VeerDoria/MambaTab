@@ -7,7 +7,7 @@ Provides utilities to aggregate metrics across seeds, build comparison tables
 
 import json
 import os
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
