@@ -24,8 +24,10 @@ from .analysis import DATASET_ABBREV, PAPER_VANILLA_RESULTS
 # One colour per model — deterministic order so colours stay stable.
 MODEL_PALETTE = {
     "MambaTab-D": "#1f77b4",
+    "MambaTab-T": "#17becf",
     "LR": "#ff7f0e",
     "XGBoost": "#2ca02c",
+    "XGBoost-2022": "#8c564b",
     "FT-Trans": "#d62728",
     "DCN": "#9467bd",
 }
@@ -494,3 +496,49 @@ def generate_all_vanilla_plots(
                 abbrev,
                 os.path.join(save_dir, f"confusion_{abbrev}.png"),
             )
+
+
+def plot_stage_progression(
+    df_progression: Any,
+    save_dir: str,
+) -> None:
+    """Plot AUROC progression across incremental feature stages (Stage 1 -> 2 -> 3).
+
+    Args:
+        df_progression: pandas DataFrame with columns ['model', 'dataset', 'stage', 'auroc'].
+        save_dir: Directory where progression figures will be saved.
+    """
+    import pandas as pd
+    _apply_style()
+    os.makedirs(save_dir, exist_ok=True)
+
+    if not isinstance(df_progression, pd.DataFrame) or df_progression.empty:
+        return
+
+    datasets = df_progression["dataset"].unique()
+    for ds in datasets:
+        abbrev = DATASET_ABBREV.get(ds, ds)
+        ds_df = df_progression[df_progression["dataset"] == ds]
+        agg = ds_df.groupby(["model", "stage"])["auroc"].mean().reset_index()
+        models = agg["model"].unique()
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+        for m in models:
+            m_sub = agg[agg["model"] == m].sort_values("stage")
+            stages = [f"Stage {st}" for st in m_sub["stage"]]
+            ax.plot(
+                stages,
+                m_sub["auroc"],
+                marker="o",
+                linewidth=2.5,
+                label=m,
+                color=_model_color(m),
+            )
+
+        ax.set_xlabel("Incremental Feature Stage")
+        ax.set_ylabel("Test AUROC")
+        ax.set_title(f"FIL Progression (s1 -> s1∪s2 -> All) — {ds.capitalize()} ({abbrev})")
+        ax.legend(loc="lower right")
+        fig.tight_layout()
+        _save_fig(fig, os.path.join(save_dir, f"progression_{abbrev}.png"))
+

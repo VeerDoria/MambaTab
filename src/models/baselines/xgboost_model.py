@@ -39,6 +39,7 @@ class XGBoostModel(BaseModel):
         colsample_bytree: float = 0.8,
         early_stopping_rounds: int = 10,
         random_state: int = 42,
+        device: Optional[str] = None,
     ):
         self.num_features = num_features
         self.n_estimators = n_estimators
@@ -48,6 +49,7 @@ class XGBoostModel(BaseModel):
         self.colsample_bytree = colsample_bytree
         self.early_stopping_rounds = early_stopping_rounds
         self.random_state = random_state
+        self.device = device
         self.model = None
         self._is_fitted = False
 
@@ -72,7 +74,7 @@ class XGBoostModel(BaseModel):
         config: Dict[str, Any],
     ) -> "XGBoostModel":
         """Fit the gradient boosting model with early stopping on validation data."""
-        xgb_cfg = config.get("xgboost", {})
+        xgb_cfg = config.get(self.name, config.get("xgboost", {}))
         n_estimators = xgb_cfg.get("n_estimators", self.n_estimators)
         max_depth = xgb_cfg.get("max_depth", self.max_depth)
         lr = xgb_cfg.get("learning_rate", self.learning_rate)
@@ -90,7 +92,9 @@ class XGBoostModel(BaseModel):
 
         if XGBOOST_AVAILABLE:
             import torch
-            xgb_device = "cuda" if torch.cuda.is_available() else "cpu"
+            xgb_device = self.device or xgb_cfg.get(
+                "device", "cuda" if torch.cuda.is_available() else "cpu"
+            )
             self.model = xgb.XGBClassifier(
                 n_estimators=n_estimators,
                 max_depth=max_depth,
@@ -133,3 +137,41 @@ class XGBoostModel(BaseModel):
         if probs.shape[1] == 2:
             return probs[:, 1].astype(np.float32)
         return probs.ravel().astype(np.float32)
+
+
+class XGBoost2022Model(XGBoostModel):
+    """XGBoost baseline following the 2022 TransTab / MambaTab paper benchmark setup.
+
+    Key properties:
+      - 100 estimators (classical baseline budget)
+      - CPU execution (device='cpu')
+      - Evaluated on common feature subset s1 in Feature-Incremental Learning (FIL)
+        as described in Section IV-C and Table III of the MambaTab paper.
+    """
+
+    name: str = "xgboost_2022"
+
+    def __init__(
+        self,
+        num_features: int,
+        n_estimators: int = 100,
+        max_depth: int = 6,
+        learning_rate: float = 0.1,
+        subsample: float = 0.8,
+        colsample_bytree: float = 0.8,
+        early_stopping_rounds: int = 10,
+        random_state: int = 42,
+        device: str = "cpu",
+    ):
+        super().__init__(
+            num_features=num_features,
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            learning_rate=learning_rate,
+            subsample=subsample,
+            colsample_bytree=colsample_bytree,
+            early_stopping_rounds=early_stopping_rounds,
+            random_state=random_state,
+            device=device,
+        )
+

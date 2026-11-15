@@ -82,6 +82,72 @@ PAPER_VANILLA_RESULTS = {
     },
 }
 
+# ============================================================
+# Paper results — hardcoded from Table III (Feature Incremental Learning)
+# ============================================================
+PAPER_FIL_RESULTS = {
+    "MambaTab-D": {
+        "CG": 0.787,
+        "CA": 0.961,
+        "DS": 0.669,
+        "AD": 0.904,
+        "CB": 0.860,
+        "BL": 0.853,
+        "IO": 0.783,
+        "IC": 0.908,
+    },
+    "TransTab": {
+        "CG": 0.741,
+        "CA": 0.879,
+        "DS": 0.665,
+        "AD": 0.894,
+        "CB": 0.791,
+        "BL": 0.841,
+        "IO": 0.739,
+        "IC": 0.897,
+    },
+    "LR": {
+        "CG": 0.670,
+        "CA": 0.773,
+        "DS": 0.475,
+        "AD": 0.832,
+        "CB": 0.727,
+        "BL": 0.806,
+        "IO": 0.655,
+        "IC": 0.825,
+    },
+    "XGBoost": {
+        "CG": 0.608,
+        "CA": 0.817,
+        "DS": 0.527,
+        "AD": 0.891,
+        "CB": 0.778,
+        "BL": 0.816,
+        "IO": 0.692,
+        "IC": 0.898,
+    },
+    "FT-Trans": {
+        "CG": 0.662,
+        "CA": 0.824,
+        "DS": 0.626,
+        "AD": 0.892,
+        "CB": 0.768,
+        "BL": 0.840,
+        "IO": 0.645,
+        "IC": 0.889,
+    },
+    "DCN": {
+        "CG": 0.674,
+        "CA": 0.835,
+        "DS": 0.578,
+        "AD": 0.893,
+        "CB": 0.778,
+        "BL": 0.840,
+        "IO": 0.660,
+        "IC": 0.891,
+    },
+}
+
 # Mapping from our full dataset names to paper abbreviations.
 DATASET_ABBREV = {
     "adult": "AD",
@@ -224,7 +290,9 @@ def create_paper_comparison_table(
         paper_results = PAPER_VANILLA_RESULTS
 
     records = []
+    processed_models = set()
     for model in paper_results:
+        processed_models.add(model)
         # Paper row
         for ds_abbrev, value in paper_results[model].items():
             records.append(
@@ -237,6 +305,23 @@ def create_paper_comparison_table(
             )
         # Our row (if available)
         if model in our_results:
+            for dataset, metrics in our_results[model].items():
+                abbrev = DATASET_ABBREV.get(dataset, dataset)
+                if metric in metrics:
+                    mean = metrics[metric]["mean"]
+                    std = metrics[metric]["std"]
+                    records.append(
+                        {
+                            "Model": model,
+                            "Source": "Ours",
+                            "Dataset": abbrev,
+                            "Value": f"{mean:.3f} ± {std:.3f}",
+                        }
+                    )
+
+    # Also include any models in our_results that were not in the original paper (e.g. XGBoost-2022, MambaTab-T in FIL)
+    for model in our_results:
+        if model not in processed_models:
             for dataset, metrics in our_results[model].items():
                 abbrev = DATASET_ABBREV.get(dataset, dataset)
                 if metric in metrics:

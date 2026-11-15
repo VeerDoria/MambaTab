@@ -1,0 +1,4 @@
+model,dataset,seed,stage,active_features,auroc,accuracy
+xgboost_2022,blastchar,0,1,6,0.766009196827611,0.759403832505323
+xgboost_2022,blastchar,0,2,12,0.766009196827611,0.759403832505323
+xgboost_2022,blastchar,0,3,19,0.766009196827611,0.759403832505323

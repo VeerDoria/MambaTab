@@ -68,13 +68,24 @@ dcn:
   num_cross_layers: 2
   dropout: 0.1
 
-# --- XGBoost ---
+# --- XGBoost (Modern 2026 Setup) ---
 xgboost:
   n_estimators: 300
   max_depth: 6
   learning_rate: 0.1
   subsample: 0.8
   colsample_bytree: 0.8
+  eval_metric: "logloss"
+  early_stopping_rounds: 10
+
+# --- XGBoost 2022 (TransTab / Paper Benchmark Setup) ---
+xgboost_2022:
+  n_estimators: 100
+  max_depth: 6
+  learning_rate: 0.1
+  subsample: 0.8
+  colsample_bytree: 0.8
+  device: "cpu"
   eval_metric: "logloss"
   early_stopping_rounds: 10
 
@@ -97,6 +108,11 @@ evaluation:
     - auroc
     - auprc
     - log_loss
+
+# --- Feature-Incremental Learning (FIL) ---
+incremental:
+  n_stages: 3
+  preserve_weights: true
 
 # --- Results ---
 results:

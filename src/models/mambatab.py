@@ -287,6 +287,38 @@ class MambaTabDModel(TorchBaseModel):
         """Train MambaTab-D with the standardized training loop."""
         return self._train_loop(X_train, y_train, X_val, y_val, config)
 
+    def expand_input_features(
+        self,
+        new_num_features: int,
+        preserve_weights: bool = True,
+    ) -> None:
+        """Dynamically adapt the embedding learner for Feature-Incremental Learning (FIL).
+
+        Expands the input dimension of `embedding_learner` while preserving the weights
+        of downstream LayerNorm, Cascading Mamba Blocks, and Output Classifier.
+
+        Args:
+            new_num_features: The new input feature dimension.
+            preserve_weights: If True, copies overlapping feature weights from the previous stage.
+        """
+        if new_num_features == self.num_features:
+            return
+
+        old_learner = self.embedding_learner
+        device = old_learner.weight.device
+        dtype = old_learner.weight.dtype
+
+        new_learner = nn.Linear(new_num_features, self.embedding_dim, device=device, dtype=dtype)
+        if preserve_weights:
+            with torch.no_grad():
+                min_feat = min(old_learner.in_features, new_num_features)
+                new_learner.weight[:, :min_feat] = old_learner.weight[:, :min_feat]
+                if old_learner.bias is not None and new_learner.bias is not None:
+                    new_learner.bias.copy_(old_learner.bias)
+
+        self.embedding_learner = new_learner
+        self.num_features = new_num_features
+
 
 class MambaTabTModel(MambaTabDModel):
     """MambaTab-T (Tuned) model.

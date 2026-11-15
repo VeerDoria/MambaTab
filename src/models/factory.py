@@ -8,7 +8,7 @@ from src.models.base import BaseModel
 from src.models.baselines.dcn import DCNModel
 from src.models.baselines.ft_transformer import FTTransformerModel
 from src.models.baselines.logistic_regression import LogisticRegressionModel
-from src.models.baselines.xgboost_model import XGBoostModel
+from src.models.baselines.xgboost_model import XGBoost2022Model, XGBoostModel
 from src.models.mambatab import MambaTabDModel, MambaTabTModel
 
 MODEL_REGISTRY = {
@@ -17,6 +17,8 @@ MODEL_REGISTRY = {
     "mambatab_t": MambaTabTModel,
     "xgboost": XGBoostModel,
     "xgb": XGBoostModel,
+    "xgboost_2022": XGBoost2022Model,
+    "xgboost_paper": XGBoost2022Model,
     "logistic_regression": LogisticRegressionModel,
     "lr": LogisticRegressionModel,
     "ft_transformer": FTTransformerModel,
@@ -101,6 +103,19 @@ def create_model(
             subsample=cfg.get("subsample", 0.8),
             colsample_bytree=cfg.get("colsample_bytree", 0.8),
             early_stopping_rounds=cfg.get("early_stopping_rounds", 10),
+        )
+
+    elif key in ("xgboost_2022", "xgboost_paper"):
+        cfg = config.get("xgboost_2022", config.get("xgboost", {}))
+        return model_cls(
+            num_features=num_features,
+            n_estimators=cfg.get("n_estimators", 100),
+            max_depth=cfg.get("max_depth", 6),
+            learning_rate=cfg.get("learning_rate", 0.1),
+            subsample=cfg.get("subsample", 0.8),
+            colsample_bytree=cfg.get("colsample_bytree", 0.8),
+            early_stopping_rounds=cfg.get("early_stopping_rounds", 10),
+            device=cfg.get("device", "cpu"),
         )
 
     elif key in ("logistic_regression", "lr"):

@@ -27,7 +27,15 @@ from src.utils.logging_utils import save_experiment_meta, setup_logger
 logger = setup_logger("training.vanilla")
 
 # Default lists when the caller does not specify
-ALL_MODELS = ["mambatab_d", "mambatab_t", "xgboost", "logistic_regression", "ft_transformer", "dcn"]
+ALL_MODELS = [
+    "mambatab_d",
+    "mambatab_t",
+    "xgboost",
+    "xgboost_2022",
+    "logistic_regression",
+    "ft_transformer",
+    "dcn",
+]
 ALL_DATASETS = ["adult", "income", "blastchar", "credit_g", "cylinder_bands"]
 
 
@@ -165,10 +173,23 @@ def run_vanilla_experiments(
     # ------------------------------------------------------------------
     # 2–4. Main experiment loop
     # ------------------------------------------------------------------
-    # raw_results: model -> dataset -> list of per-seed result dicts
-    raw_results: Dict[str, Dict[str, List[Dict[str, Any]]]] = {
-        m: {d: [] for d in dataset_names} for m in model_names
-    }
+    # Load existing raw results if present to allow incremental model additions
+    raw_results_path = os.path.join(results_dir, "raw_results.json")
+    if os.path.exists(raw_results_path):
+        try:
+            with open(raw_results_path, "r") as f:
+                raw_results = json.load(f)
+        except Exception:
+            raw_results = {}
+    else:
+        raw_results = {}
+
+    for m in model_names:
+        if m not in raw_results:
+            raw_results[m] = {}
+        for d in dataset_names:
+            raw_results[m][d] = []
+
     failed_runs: List[Dict[str, Any]] = []
 
     # tqdm is optional but nice to have
