@@ -78,7 +78,7 @@ xgboost:
   eval_metric: "logloss"
   early_stopping_rounds: 10
 
-# --- XGBoost 2022 (TransTab / Paper Benchmark Setup) ---
+# --- XGBoost 2022 (TransTab / Paper Benchmark Setup with Early Stopping) ---
 xgboost_2022:
   n_estimators: 100
   max_depth: 6
@@ -88,6 +88,17 @@ xgboost_2022:
   device: "cpu"
   eval_metric: "logloss"
   early_stopping_rounds: 10
+
+# --- XGBoost Paper (Exact TransTab / MambaTab Table II & III: Fixed 100 Trees, No Early Stopping) ---
+xgboost_paper:
+  n_estimators: 100
+  max_depth: 6
+  learning_rate: 0.1
+  subsample: 0.8
+  colsample_bytree: 0.8
+  device: "cpu"
+  eval_metric: "logloss"
+  early_stopping_rounds: null
 
 # --- Logistic Regression ---
 logistic_regression:

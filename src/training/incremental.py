@@ -44,6 +44,7 @@ ALL_MODELS = [
     "mambatab_t",
     "xgboost",
     "xgboost_2022",
+    "xgboost_paper",
     "logistic_regression",
     "ft_transformer",
     "dcn",
@@ -235,6 +236,13 @@ def run_incremental_experiments(
     if seeds is None:
         seeds = config.get("training", {}).get("seeds", [0, 1, 2, 3, 4])
 
+    from src.utils.experiment_utils import generate_run_summary_md, get_next_run_dir
+
+    # Automatically route to incremental run folders (run_1, run_2, etc.) to prevent overwriting
+    if save_dir is None or save_dir.rstrip("/\\").endswith("fil"):
+        base_dir = save_dir if save_dir else os.path.join(config.get("results", {}).get("base_dir", "results"), "fil")
+        save_dir = get_next_run_dir(base_dir)
+
     preserve_weights = config.get("incremental", {}).get("preserve_weights", True)
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(os.path.join(save_dir, "tables"), exist_ok=True)
@@ -388,6 +396,7 @@ def run_incremental_experiments(
             "mambatab_t": "MambaTab-T",
             "xgboost": "XGBoost",
             "xgboost_2022": "XGBoost-2022",
+            "xgboost_paper": "XGBoost-Paper",
             "logistic_regression": "LR",
             "ft_transformer": "FT-Trans",
             "dcn": "DCN",
@@ -414,7 +423,7 @@ def run_incremental_experiments(
     except Exception as e:
         logger.warning(f"Could not generate visual plots: {e}")
 
-    # Summary Output
+    # Summary Output — AUROC
     print("\n" + "=" * 70)
     print("  FEATURE-INCREMENTAL LEARNING (FIL) SUMMARY (AUROC)")
     print("=" * 70)
@@ -435,11 +444,47 @@ def run_incremental_experiments(
         print(row_str)
     print("=" * 70)
 
+    # Summary Output — Training Time
+    print("\n" + "=" * 70)
+    print("  FEATURE-INCREMENTAL LEARNING (FIL) SUMMARY (TRAINING TIME in seconds)")
+    print("=" * 70)
+    print(header)
+    print("-" * len(header))
+
+    for m in models:
+        row_str = f"{m:<22} | "
+        vals = []
+        for d in datasets:
+            t_data = aggregated_results[m].get(d, {}).get("training_time")
+            if t_data:
+                vals.append(f"{t_data['mean']:.2f}±{t_data['std']:.2f}s")
+            else:
+                vals.append("  N/A  ")
+        row_str += " | ".join(vals)
+        print(row_str)
+    print("=" * 70)
+
+    # Generate clean SUMMARY.md report
+    try:
+        summary_md_path = generate_run_summary_md(
+            aggregated_results=aggregated_results,
+            dataset_names=datasets,
+            setting="fil",
+            save_dir=save_dir,
+            extra_meta={"seeds": seeds, "stages": n_stages},
+        )
+        logger.info(f"Summary markdown report created at {summary_md_path}")
+    except Exception as exc:
+        logger.warning(f"Could not generate SUMMARY.md: {exc}")
+
     if failed_runs:
         print(f"\n⚠  {len(failed_runs)} run(s) failed:")
         for fr in failed_runs:
             print(f"   - {fr}")
     else:
         print("\nAll runs completed successfully! ✓")
+
+    print(f"\n📁 Results saved to: {save_dir}")
+    print(f"📄 Summary report:   {os.path.join(save_dir, 'SUMMARY.md')}\n")
 
     return aggregated_results

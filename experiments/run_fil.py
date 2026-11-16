@@ -78,9 +78,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--results-dir",
         type=str,
-        default="results/fil",
+        default=None,
         metavar="DIR",
-        help="Directory to save FIL results. Default: results/fil.",
+        help="Directory to save FIL results. Default: auto-generated incremental folder (e.g. results/fil/run_1, run_2, etc.).",
     )
     parser.add_argument(
         "--config",

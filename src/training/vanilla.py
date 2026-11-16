@@ -32,6 +32,7 @@ ALL_MODELS = [
     "mambatab_t",
     "xgboost",
     "xgboost_2022",
+    "xgboost_paper",
     "logistic_regression",
     "ft_transformer",
     "dcn",
@@ -155,8 +156,13 @@ def run_vanilla_experiments(
         dataset_names = ALL_DATASETS
     if config is None:
         config = load_config()
-    if results_dir is None:
-        results_dir = os.path.join(config["results"]["base_dir"], "vanilla")
+
+    from src.utils.experiment_utils import generate_run_summary_md, get_next_run_dir
+
+    # Automatically route to incremental run folders (run_1, run_2, etc.) to prevent overwriting
+    if results_dir is None or results_dir.rstrip("/\\").endswith("vanilla"):
+        base_dir = results_dir if results_dir else os.path.join(config["results"]["base_dir"], "vanilla")
+        results_dir = get_next_run_dir(base_dir)
 
     seeds = config["training"]["seeds"]
 
@@ -315,7 +321,7 @@ def run_vanilla_experiments(
         logger.error(f"Failed to save aggregated results:\n{traceback.format_exc()}")
 
     # ------------------------------------------------------------------
-    # 9. Generate visualisations
+    # 9. Generate visualisations and markdown summary report
     # ------------------------------------------------------------------
     try:
         figures_dir = os.path.join(results_dir, "figures")
@@ -329,11 +335,27 @@ def run_vanilla_experiments(
     except Exception:
         logger.error(f"Failed to generate visualisations:\n{traceback.format_exc()}")
 
+    # Generate clean SUMMARY.md report
+    try:
+        summary_md_path = generate_run_summary_md(
+            aggregated_results=aggregated,
+            dataset_names=dataset_names,
+            setting="vanilla",
+            save_dir=results_dir,
+            extra_meta={"seeds": seeds},
+        )
+        logger.info(f"Summary markdown report created at {summary_md_path}")
+    except Exception as exc:
+        logger.warning(f"Could not generate SUMMARY.md: {exc}")
+
     # ------------------------------------------------------------------
     # 10. Print summary to console
     # ------------------------------------------------------------------
     _print_summary_table(aggregated, dataset_names, metric="auroc")
     _print_summary_table(aggregated, dataset_names, metric="training_time")
+
+    print(f"📁 Results saved to: {results_dir}")
+    print(f"📄 Summary report:   {os.path.join(results_dir, 'SUMMARY.md')}\n")
 
     if failed_runs:
         print(f"\n⚠  {len(failed_runs)} run(s) failed. See logs for details.")

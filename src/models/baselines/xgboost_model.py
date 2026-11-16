@@ -95,24 +95,34 @@ class XGBoostModel(BaseModel):
             xgb_device = self.device or xgb_cfg.get(
                 "device", "cuda" if torch.cuda.is_available() else "cpu"
             )
-            self.model = xgb.XGBClassifier(
-                n_estimators=n_estimators,
-                max_depth=max_depth,
-                learning_rate=lr,
-                subsample=subsample,
-                colsample_bytree=colsample,
-                eval_metric="logloss",
-                early_stopping_rounds=early_stopping,
-                random_state=self.random_state,
-                verbosity=0,
-                device=xgb_device,
-            )
-            self.model.fit(
-                X_train,
-                y_train.astype(int),
-                eval_set=[(X_val, y_val.astype(int))],
-                verbose=False,
-            )
+            xgb_kwargs = {
+                "n_estimators": n_estimators,
+                "max_depth": max_depth,
+                "learning_rate": lr,
+                "subsample": subsample,
+                "colsample_bytree": colsample,
+                "eval_metric": "logloss",
+                "random_state": self.random_state,
+                "verbosity": 0,
+                "device": xgb_device,
+            }
+            if early_stopping is not None and early_stopping > 0:
+                xgb_kwargs["early_stopping_rounds"] = early_stopping
+
+            self.model = xgb.XGBClassifier(**xgb_kwargs)
+            if early_stopping is not None and early_stopping > 0:
+                self.model.fit(
+                    X_train,
+                    y_train.astype(int),
+                    eval_set=[(X_val, y_val.astype(int))],
+                    verbose=False,
+                )
+            else:
+                self.model.fit(
+                    X_train,
+                    y_train.astype(int),
+                    verbose=False,
+                )
         else:
             logger.warning(
                 "xgboost package not found; using HistGradientBoostingClassifier as drop-in fallback."
@@ -121,7 +131,7 @@ class XGBoostModel(BaseModel):
                 max_iter=n_estimators,
                 max_depth=max_depth,
                 learning_rate=lr,
-                early_stopping=True,
+                early_stopping=bool(early_stopping and early_stopping > 0),
                 random_state=self.random_state,
             )
             self.model.fit(X_train, y_train.astype(int))
@@ -145,6 +155,7 @@ class XGBoost2022Model(XGBoostModel):
     Key properties:
       - 100 estimators (classical baseline budget)
       - CPU execution (device='cpu')
+      - Early stopping on validation set enabled
       - Evaluated on common feature subset s1 in Feature-Incremental Learning (FIL)
         as described in Section IV-C and Table III of the MambaTab paper.
     """
@@ -160,6 +171,43 @@ class XGBoost2022Model(XGBoostModel):
         subsample: float = 0.8,
         colsample_bytree: float = 0.8,
         early_stopping_rounds: int = 10,
+        random_state: int = 42,
+        device: str = "cpu",
+    ):
+        super().__init__(
+            num_features=num_features,
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            learning_rate=learning_rate,
+            subsample=subsample,
+            colsample_bytree=colsample_bytree,
+            early_stopping_rounds=early_stopping_rounds,
+            random_state=random_state,
+            device=device,
+        )
+
+
+class XGBoostPaperModel(XGBoostModel):
+    """XGBoost baseline strictly matching the unregularized paper setup (TransTab 2022).
+
+    Key properties:
+      - Fixed 100 estimators (NO early stopping)
+      - CPU execution (device='cpu')
+      - Evaluated on initial feature subset s1 in Feature-Incremental Learning (FIL)
+      - Perfectly reproduces the baseline protocol of TransTab / MambaTab Table II & III
+    """
+
+    name: str = "xgboost_paper"
+
+    def __init__(
+        self,
+        num_features: int,
+        n_estimators: int = 100,
+        max_depth: int = 6,
+        learning_rate: float = 0.1,
+        subsample: float = 0.8,
+        colsample_bytree: float = 0.8,
+        early_stopping_rounds: Optional[int] = None,
         random_state: int = 42,
         device: str = "cpu",
     ):

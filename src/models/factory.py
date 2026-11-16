@@ -8,7 +8,11 @@ from src.models.base import BaseModel
 from src.models.baselines.dcn import DCNModel
 from src.models.baselines.ft_transformer import FTTransformerModel
 from src.models.baselines.logistic_regression import LogisticRegressionModel
-from src.models.baselines.xgboost_model import XGBoost2022Model, XGBoostModel
+from src.models.baselines.xgboost_model import (
+    XGBoost2022Model,
+    XGBoostModel,
+    XGBoostPaperModel,
+)
 from src.models.mambatab import MambaTabDModel, MambaTabTModel
 
 MODEL_REGISTRY = {
@@ -18,7 +22,8 @@ MODEL_REGISTRY = {
     "xgboost": XGBoostModel,
     "xgb": XGBoostModel,
     "xgboost_2022": XGBoost2022Model,
-    "xgboost_paper": XGBoost2022Model,
+    "xgboost_paper": XGBoostPaperModel,
+    "xgboost_raw": XGBoostPaperModel,
     "logistic_regression": LogisticRegressionModel,
     "lr": LogisticRegressionModel,
     "ft_transformer": FTTransformerModel,

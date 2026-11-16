@@ -28,6 +28,7 @@ MODEL_PALETTE = {
     "LR": "#ff7f0e",
     "XGBoost": "#2ca02c",
     "XGBoost-2022": "#8c564b",
+    "XGBoost-Paper": "#bcbd22",
     "FT-Trans": "#d62728",
     "DCN": "#9467bd",
 }

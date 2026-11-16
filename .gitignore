@@ -27,13 +27,15 @@ wheels/
 htmlcov/
 .ipynb_checkpoints
 
-results/**/*.json
-results/**/raw/
+# results/**/*.json
+# results/**/raw/
 
-!results/**/figures/**
-!results/**/tables/**
-!results/**/*.csv
-!results/**/*.md
+# !results/**/figures/**
+# !results/**/tables/**
+# !results/**/*.csv
+# !results/**/*.md
+
+results/
 
 data/raw/
 *.log

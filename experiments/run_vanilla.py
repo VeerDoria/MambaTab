@@ -80,7 +80,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         metavar="DIR",
-        help="Directory to save results. Default: results/vanilla/.",
+        help="Directory to save results. Default: auto-generated incremental folder (e.g. results/vanilla/run_1, run_2, etc.).",
     )
     parser.add_argument(
         "--config",
