@@ -1,4 +1,12 @@
-# Comprehensive Evaluation and Architectural Analysis of MambaTab on Tabular Classification and Regression
+# Evaluation of MambaTab on Tabular Classification and Regression
+
+## Submitted By : 
+Veer Doria - 240041039  
+Tanish Yadav - 240041036   
+Aniket Khandelwal - 240041003  
+
+## Instructor : 
+#### Prof. M.Tanveer
 
 ## 1. Introduction, Architecture and Approach
 
