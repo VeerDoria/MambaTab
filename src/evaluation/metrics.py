@@ -108,3 +108,75 @@ def get_metric_names() -> List[str]:
         "log_loss",
         "specificity",
     ]
+
+
+def compute_regression_metrics(
+    y_true: np.ndarray, y_pred: np.ndarray
+) -> Dict[str, float]:
+    """Compute all standard regression evaluation metrics.
+
+    Args:
+        y_true: Ground truth continuous targets, shape (n_samples,).
+        y_pred: Predicted continuous values, shape (n_samples,).
+
+    Returns:
+        Dictionary with: rmse, mae, r2, mse, mape, pearson_r.
+    """
+    y_true = np.asarray(y_true, dtype=np.float64).ravel()
+    y_pred = np.asarray(y_pred, dtype=np.float64).ravel()
+
+    # Filter non-finite values if any
+    mask = np.isfinite(y_true) & np.isfinite(y_pred)
+    if not np.all(mask):
+        y_true = y_true[mask]
+        y_pred = y_pred[mask]
+
+    if len(y_true) == 0:
+        return {
+            "rmse": float("nan"),
+            "mae": float("nan"),
+            "r2": float("nan"),
+            "mse": float("nan"),
+            "mape": float("nan"),
+            "pearson_r": float("nan"),
+        }
+
+    mse = float(np.mean((y_true - y_pred) ** 2))
+    rmse = float(np.sqrt(mse))
+    mae = float(np.mean(np.abs(y_true - y_pred)))
+
+    # R^2 score
+    ss_tot = float(np.sum((y_true - np.mean(y_true)) ** 2))
+    ss_res = float(np.sum((y_true - y_pred) ** 2))
+    if ss_tot > 1e-12:
+        r2 = float(1.0 - (ss_res / ss_tot))
+    else:
+        r2 = 0.0
+
+    # MAPE (avoiding division by zero)
+    non_zero = np.abs(y_true) > 1e-8
+    if np.any(non_zero):
+        mape = float(np.mean(np.abs((y_true[non_zero] - y_pred[non_zero]) / y_true[non_zero])) * 100.0)
+    else:
+        mape = float("nan")
+
+    # Pearson correlation r
+    if np.std(y_true) > 1e-8 and np.std(y_pred) > 1e-8:
+        corr_matrix = np.corrcoef(y_true, y_pred)
+        pearson_r = float(corr_matrix[0, 1])
+    else:
+        pearson_r = 0.0
+
+    return {
+        "rmse": rmse,
+        "mae": mae,
+        "r2": r2,
+        "mse": mse,
+        "mape": mape,
+        "pearson_r": pearson_r,
+    }
+
+
+def get_regression_metric_names() -> List[str]:
+    """Return list of regression metric names."""
+    return ["rmse", "mae", "r2", "mse", "mape", "pearson_r"]

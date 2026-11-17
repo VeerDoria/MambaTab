@@ -1,16 +1,33 @@
 """Generate formatted summary tables corresponding to all saved figures in results/vanilla/figures.
 """
 
+import argparse
 import json
 import os
 import pandas as pd
 
 def main():
-    raw_path = "results/vanilla/vanilla_results_raw.json"
-    if not os.path.exists(raw_path):
-        print(f"File {raw_path} does not exist.")
+    parser = argparse.ArgumentParser(description="Generate summary tables from vanilla results.")
+    parser.add_argument("--input-file", "-i", type=str, default=None, help="Path to vanilla_results_raw.json")
+    parser.add_argument("--output-dir", "-o", type=str, default=None, help="Directory to save output tables")
+    args, _ = parser.parse_known_args()
+
+    raw_path = args.input_file
+    if raw_path is None:
+        candidates = [
+            "results/vanilla/latest/vanilla_results_raw.json",
+            "results/vanilla/vanilla_results_raw.json",
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                raw_path = c
+                break
+
+    if raw_path is None or not os.path.exists(raw_path):
+        print(f"Error: Could not find vanilla_results_raw.json. Please check results path.")
         return
 
+    print(f"Loading results from: {raw_path}")
     with open(raw_path) as f:
         data = json.load(f)
 
@@ -18,7 +35,6 @@ def main():
         "mambatab_d",
         "mambatab_t",
         "xgboost",
-        "xgboost_2022",
         "xgboost_paper",
         "logistic_regression",
         "ft_transformer",
@@ -28,7 +44,6 @@ def main():
         "mambatab_d": "MambaTab-D",
         "mambatab_t": "MambaTab-T",
         "xgboost": "XGBoost",
-        "xgboost_2022": "XGBoost (2022 Early-Stop)",
         "xgboost_paper": "XGBoost (Paper Unregularized)",
         "logistic_regression": "Logistic Regression",
         "ft_transformer": "FT-Transformer",
@@ -75,7 +90,11 @@ def main():
         ("training_time", "Train Time (s)"),
     ]
 
-    out_dir = "results/vanilla/tables"
+    if args.output_dir:
+        out_dir = args.output_dir
+    else:
+        run_parent = os.path.dirname(os.path.abspath(raw_path))
+        out_dir = os.path.join(run_parent, "tables")
     os.makedirs(out_dir, exist_ok=True)
 
     # 1. Export CSVs

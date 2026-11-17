@@ -53,8 +53,9 @@ class DCNModel(TorchBaseModel):
         hidden_dims: Optional[List[int]] = None,
         num_cross_layers: int = 2,
         dropout: float = 0.1,
+        task_type: str = "classification",
     ):
-        super().__init__()
+        super().__init__(task_type=task_type)
         self.num_features = num_features
         self.hidden_dims = hidden_dims if hidden_dims is not None else [128, 64]
         self.num_cross_layers = num_cross_layers

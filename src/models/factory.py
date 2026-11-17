@@ -9,7 +9,6 @@ from src.models.baselines.dcn import DCNModel
 from src.models.baselines.ft_transformer import FTTransformerModel
 from src.models.baselines.logistic_regression import LogisticRegressionModel
 from src.models.baselines.xgboost_model import (
-    XGBoost2022Model,
     XGBoostModel,
     XGBoostPaperModel,
 )
@@ -21,7 +20,6 @@ MODEL_REGISTRY = {
     "mambatab_t": MambaTabTModel,
     "xgboost": XGBoostModel,
     "xgb": XGBoostModel,
-    "xgboost_2022": XGBoost2022Model,
     "xgboost_paper": XGBoostPaperModel,
     "xgboost_raw": XGBoostPaperModel,
     "logistic_regression": LogisticRegressionModel,
@@ -43,6 +41,12 @@ MAMBATAB_T_CONFIGS = {
     "cg": {"embedding_dim": 64, "ssm_state_dim": 16, "block_expansion": 3},
     "cylinder_bands": {"embedding_dim": 32, "ssm_state_dim": 8, "block_expansion": 7},
     "cb": {"embedding_dim": 32, "ssm_state_dim": 8, "block_expansion": 7},
+    "california_housing": {"embedding_dim": 64, "ssm_state_dim": 32, "block_expansion": 4},
+    "ch": {"embedding_dim": 64, "ssm_state_dim": 32, "block_expansion": 4},
+    "abalone": {"embedding_dim": 32, "ssm_state_dim": 16, "block_expansion": 2},
+    "ab": {"embedding_dim": 32, "ssm_state_dim": 16, "block_expansion": 2},
+    "concrete": {"embedding_dim": 32, "ssm_state_dim": 8, "block_expansion": 2},
+    "co": {"embedding_dim": 32, "ssm_state_dim": 8, "block_expansion": 2},
 }
 
 
@@ -51,6 +55,7 @@ def create_model(
     num_features: int,
     config: Dict[str, Any],
     dataset_name: Optional[str] = None,
+    task_type: str = "classification",
 ) -> BaseModel:
     """Create and return a model instance configured according to the config.
 
@@ -58,6 +63,8 @@ def create_model(
         model_name: Identifier for the model.
         num_features: Number of input features for the dataset.
         config: Full configuration dictionary.
+        dataset_name: Optional name of dataset (for tuned model hyperparams).
+        task_type: 'classification' or 'regression'.
 
     Returns:
         Instantiated BaseModel.
@@ -82,11 +89,12 @@ def create_model(
             conv_width=cfg.get("conv_width", 4),
             num_blocks=cfg.get("num_blocks", 1),
             block_expansion=cfg.get("block_expansion", 2),
+            task_type=task_type,
         )
 
     elif key == "mambatab_t":
         ds_key = dataset_name.lower().strip() if dataset_name else "adult"
-        # Check YAML config first, then fallback to built-in Table VI defaults
+        # Check YAML config first, then fallback to built-in defaults
         yaml_t_cfgs = config.get("mambatab_t", {})
         t_cfg = yaml_t_cfgs.get(ds_key, MAMBATAB_T_CONFIGS.get(ds_key, {}))
         return model_cls(
@@ -96,6 +104,7 @@ def create_model(
             conv_width=t_cfg.get("conv_width", 4),
             num_blocks=t_cfg.get("num_blocks", 1),
             block_expansion=t_cfg.get("block_expansion", 2),
+            task_type=task_type,
         )
 
     elif key in ("xgboost", "xgb"):
@@ -108,10 +117,11 @@ def create_model(
             subsample=cfg.get("subsample", 0.8),
             colsample_bytree=cfg.get("colsample_bytree", 0.8),
             early_stopping_rounds=cfg.get("early_stopping_rounds", 10),
+            task_type=task_type,
         )
 
-    elif key in ("xgboost_2022", "xgboost_paper"):
-        cfg = config.get("xgboost_2022", config.get("xgboost", {}))
+    elif key in ("xgboost_paper", "xgboost_raw"):
+        cfg = config.get("xgboost_paper", {})
         return model_cls(
             num_features=num_features,
             n_estimators=cfg.get("n_estimators", 100),
@@ -119,8 +129,9 @@ def create_model(
             learning_rate=cfg.get("learning_rate", 0.1),
             subsample=cfg.get("subsample", 0.8),
             colsample_bytree=cfg.get("colsample_bytree", 0.8),
-            early_stopping_rounds=cfg.get("early_stopping_rounds", 10),
+            early_stopping_rounds=cfg.get("early_stopping_rounds", None),
             device=cfg.get("device", "cpu"),
+            task_type=task_type,
         )
 
     elif key in ("logistic_regression", "lr"):
@@ -130,6 +141,7 @@ def create_model(
             C=cfg.get("C", 1.0),
             max_iter=cfg.get("max_iter", 1000),
             solver=cfg.get("solver", "lbfgs"),
+            task_type=task_type,
         )
 
     elif key in ("ft_transformer", "ft_trans"):
@@ -142,6 +154,7 @@ def create_model(
             d_ffn=cfg.get("d_ffn", 128),
             dropout=cfg.get("dropout", 0.1),
             attention_dropout=cfg.get("attention_dropout", 0.1),
+            task_type=task_type,
         )
 
     elif key == "dcn":
@@ -151,6 +164,7 @@ def create_model(
             hidden_dims=cfg.get("hidden_dims", [128, 64]),
             num_cross_layers=cfg.get("num_cross_layers", 2),
             dropout=cfg.get("dropout", 0.1),
+            task_type=task_type,
         )
 
     raise ValueError(f"Unhandled model creation branch for '{model_name}'")

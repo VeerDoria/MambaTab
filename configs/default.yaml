@@ -6,6 +6,8 @@
 training:
   max_epochs: 1000
   early_stopping_patience: 5
+  min_epochs: 10
+  early_stopping_metric: "val_loss"
   batch_size: 64
   learning_rate: 0.0001
   optimizer: adam
@@ -75,17 +77,6 @@ xgboost:
   learning_rate: 0.1
   subsample: 0.8
   colsample_bytree: 0.8
-  eval_metric: "logloss"
-  early_stopping_rounds: 10
-
-# --- XGBoost 2022 (TransTab / Paper Benchmark Setup with Early Stopping) ---
-xgboost_2022:
-  n_estimators: 100
-  max_depth: 6
-  learning_rate: 0.1
-  subsample: 0.8
-  colsample_bytree: 0.8
-  device: "cpu"
   eval_metric: "logloss"
   early_stopping_rounds: 10
 

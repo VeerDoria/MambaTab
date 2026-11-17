@@ -221,8 +221,9 @@ class MambaTabDModel(TorchBaseModel):
         conv_width: int = 4,
         num_blocks: int = 1,
         block_expansion: int = 2,
+        task_type: str = "classification",
     ):
-        super().__init__()
+        super().__init__(task_type=task_type)
         self.num_features = num_features
         self.embedding_dim = embedding_dim
         self.ssm_state_dim = ssm_state_dim

@@ -55,8 +55,9 @@ class FTTransformerModel(TorchBaseModel):
         d_ffn: int = 128,
         dropout: float = 0.1,
         attention_dropout: float = 0.1,
+        task_type: str = "classification",
     ):
-        super().__init__()
+        super().__init__(task_type=task_type)
         self.num_features = num_features
         self.d_model = d_model
         self.n_heads = n_heads

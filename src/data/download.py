@@ -152,6 +152,57 @@ def _download_cylinder_bands(save_dir: str) -> pd.DataFrame:
     return df
 
 
+def _download_california_housing(save_dir: str) -> pd.DataFrame:
+    """Download and prepare the California Housing regression dataset."""
+    logger.info("Downloading California Housing dataset...")
+    try:
+        from sklearn.datasets import fetch_california_housing
+        bunch = fetch_california_housing(as_frame=True)
+        return bunch.frame
+    except Exception as e:
+        logger.info(f"fetch_california_housing failed ({e}); trying openml ID 531...")
+        return download_from_openml(531)
+
+
+def _download_abalone(save_dir: str) -> pd.DataFrame:
+    """Download and prepare the Abalone regression dataset (OpenML ID: 183)."""
+    logger.info("Downloading Abalone dataset from OpenML (ID: 183)...")
+    try:
+        import openml
+        d = openml.datasets.get_dataset(183)
+        df, *_ = d.get_data(dataset_format="dataframe")
+        return df
+    except Exception as e:
+        logger.info(f"openml client failed ({e}); falling back to download_from_openml...")
+        return download_from_openml(183)
+
+
+def _download_concrete(save_dir: str) -> pd.DataFrame:
+    """Download and prepare the Concrete Compressive Strength dataset (OpenML ID: 4353)."""
+    logger.info("Downloading Concrete dataset from OpenML (ID: 4353)...")
+    try:
+        import openml
+        d = openml.datasets.get_dataset(4353)
+        df, *_ = d.get_data(dataset_format="dataframe")
+    except Exception:
+        df = download_from_openml(4353)
+
+    if len(df.columns) == 9:
+        clean_cols = [
+            "cement",
+            "blast_furnace_slag",
+            "fly_ash",
+            "water",
+            "superplasticizer",
+            "coarse_aggregate",
+            "fine_aggregate",
+            "age",
+            "compressive_strength",
+        ]
+        df.columns = clean_cols
+    return df
+
+
 # Registry of dataset download functions
 _DOWNLOAD_REGISTRY = {
     "adult": _download_adult,
@@ -159,6 +210,9 @@ _DOWNLOAD_REGISTRY = {
     "blastchar": _download_blastchar,
     "credit_g": _download_credit_g,
     "cylinder_bands": _download_cylinder_bands,
+    "california_housing": _download_california_housing,
+    "abalone": _download_abalone,
+    "concrete": _download_concrete,
 }
 
 

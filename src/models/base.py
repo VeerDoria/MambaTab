@@ -84,10 +84,11 @@ class TorchBaseModel(BaseModel, nn.Module):
     - In-memory checkpointing of the best validation model
     """
 
-    def __init__(self):
+    def __init__(self, task_type: str = "classification"):
         BaseModel.__init__(self)
         nn.Module.__init__(self)
         self.device = get_device()
+        self.task_type = task_type.lower().strip()
         self.training_history: Dict[str, list] = {
             "train_loss": [],
             "val_loss": [],
@@ -113,6 +114,8 @@ class TorchBaseModel(BaseModel, nn.Module):
         training_cfg = config.get("training", {})
         max_epochs = training_cfg.get("max_epochs", 1000)
         patience = training_cfg.get("early_stopping_patience", 5)
+        min_epochs = training_cfg.get("min_epochs", 10)
+        early_stopping_metric = training_cfg.get("early_stopping_metric", "val_loss").lower()
         batch_size = training_cfg.get("batch_size", 64)
         lr = training_cfg.get("learning_rate", 1e-4)
 
@@ -123,7 +126,8 @@ class TorchBaseModel(BaseModel, nn.Module):
             X_val, y_val, batch_size=batch_size, shuffle=False
         )
 
-        criterion = nn.BCEWithLogitsLoss()
+        is_regression = self.task_type == "regression"
+        criterion = nn.MSELoss() if is_regression else nn.BCEWithLogitsLoss()
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=max_epochs, eta_min=1e-6
@@ -181,45 +185,66 @@ class TorchBaseModel(BaseModel, nn.Module):
                     val_loss += loss.item()
                     val_batches += 1
 
-                    probs = torch.sigmoid(logits).cpu().numpy()
-                    val_preds.extend(probs.flatten().tolist())
-                    val_targets.extend(y_b.cpu().numpy().flatten().tolist())
+                    if is_regression:
+                        preds = logits.cpu().numpy().reshape(-1)
+                        val_preds.extend(preds.tolist())
+                    else:
+                        probs = torch.sigmoid(logits).cpu().numpy().reshape(-1)
+                        val_preds.extend(probs.tolist())
+                    val_targets.extend(y_b.cpu().numpy().reshape(-1).tolist())
 
             avg_val_loss = val_loss / max(1, val_batches)
 
-            # Calculate validation AUROC
-            val_targets_arr = np.array(val_targets)
-            val_preds_arr = np.array(val_preds)
-            if len(np.unique(val_targets_arr)) > 1:
-                val_auroc = roc_auc_score(val_targets_arr, val_preds_arr)
+            # Calculate validation AUROC (classification only)
+            if not is_regression:
+                val_targets_arr = np.array(val_targets)
+                val_preds_arr = np.array(val_preds)
+                if len(np.unique(val_targets_arr)) > 1:
+                    val_auroc = roc_auc_score(val_targets_arr, val_preds_arr)
+                else:
+                    val_auroc = 0.5
             else:
-                val_auroc = 0.5
+                val_auroc = 0.0
 
             self.training_history["train_loss"].append(avg_train_loss)
             self.training_history["val_loss"].append(avg_val_loss)
             self.training_history["val_auroc"].append(val_auroc)
 
             # Check early stopping criterion on validation loss (or AUROC)
-            # Paper mentions validation loss was monitored for checkpointing / stopping
-            if avg_val_loss < best_val_loss:
+            is_better = False
+            if early_stopping_metric == "auroc" and not is_regression:
+                if val_auroc > best_val_auroc + 1e-4:
+                    is_better = True
+            else:
+                if avg_val_loss < best_val_loss - 1e-5:
+                    is_better = True
+
+            if is_better:
                 best_val_loss = avg_val_loss
                 best_val_auroc = val_auroc
                 best_weights = copy.deepcopy(self.state_dict())
                 best_epoch = epoch
                 patience_counter = 0
             else:
-                patience_counter += 1
+                if epoch >= min_epochs:
+                    patience_counter += 1
 
             if epoch % 50 == 0 or epoch == 1:
-                logger.info(
-                    f"Epoch {epoch:4d}/{max_epochs:4d} | Train Loss: {avg_train_loss:.4f} | "
-                    f"Val Loss: {avg_val_loss:.4f} | Val AUROC: {val_auroc:.4f}"
-                )
+                if is_regression:
+                    logger.info(
+                        f"Epoch {epoch:4d}/{max_epochs:4d} | Train MSE: {avg_train_loss:.4f} | "
+                        f"Val MSE: {avg_val_loss:.4f}"
+                    )
+                else:
+                    logger.info(
+                        f"Epoch {epoch:4d}/{max_epochs:4d} | Train Loss: {avg_train_loss:.4f} | "
+                        f"Val Loss: {avg_val_loss:.4f} | Val AUROC: {val_auroc:.4f}"
+                    )
 
             if patience_counter >= patience:
                 logger.info(
                     f"Early stopping triggered at epoch {epoch}. "
-                    f"Best epoch: {best_epoch} (Val Loss: {best_val_loss:.4f}, Val AUROC: {best_val_auroc:.4f})"
+                    f"Best epoch: {best_epoch} (Val Loss: {best_val_loss:.4f})"
                 )
                 break
 
@@ -227,6 +252,24 @@ class TorchBaseModel(BaseModel, nn.Module):
         self.load_state_dict(best_weights)
         self.eval()
         return self
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Predict continuous target values (for regression)."""
+        self.eval()
+        self.to(self.device)
+
+        batch_size = 256
+        n_samples = len(X)
+        preds = np.zeros(n_samples, dtype=np.float32)
+
+        with torch.no_grad():
+            for i in range(0, n_samples, batch_size):
+                batch_X = torch.FloatTensor(X[i : i + batch_size]).to(self.device)
+                logits = self(batch_X).squeeze(-1)
+                batch_preds = logits.cpu().numpy().reshape(-1)
+                preds[i : i + len(batch_preds)] = batch_preds
+
+        return preds
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         """Predict positive class probabilities for input features."""

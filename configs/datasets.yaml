@@ -52,3 +52,33 @@ datasets:
     num_samples: 540
     positive_rate: 0.58
     description: "Cylinder banding in rotogravure printing"
+
+  # ============================================================
+  # Regression Datasets (Separate Benchmark)
+  # ============================================================
+  california_housing:
+    name: "California Housing"
+    abbreviation: "CH"
+    openml_id: 531
+    target_column: "MedHouseVal"
+    task_type: "regression"
+    num_samples: 20640
+    description: "Median house value prediction based on 1990 California census data"
+
+  abalone:
+    name: "Abalone"
+    abbreviation: "AB"
+    openml_id: 183
+    target_column: "Class_number_of_rings"
+    task_type: "regression"
+    num_samples: 4177
+    description: "Predict the age of abalone from physical measurements"
+
+  concrete:
+    name: "Concrete"
+    abbreviation: "CO"
+    openml_id: 4353
+    target_column: "compressive_strength"
+    task_type: "regression"
+    num_samples: 1030
+    description: "Concrete compressive strength (MPa) based on constituent mixture"

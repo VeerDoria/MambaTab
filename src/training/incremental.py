@@ -43,7 +43,6 @@ ALL_MODELS = [
     "mambatab_d",
     "mambatab_t",
     "xgboost",
-    "xgboost_2022",
     "xgboost_paper",
     "logistic_regression",
     "ft_transformer",
@@ -113,7 +112,7 @@ def run_single_incremental_experiment(
     )
 
     is_dynamic_model = model_name in ("mambatab_d", "mambatab_t")
-    is_paper_baseline = model_name in ("xgboost_2022", "xgboost_paper")
+    is_paper_baseline = model_name == "xgboost_paper"
     model = None
     stage_progressions = []
     total_training_time = 0.0
@@ -395,7 +394,6 @@ def run_incremental_experiments(
             "mambatab_d": "MambaTab-D",
             "mambatab_t": "MambaTab-T",
             "xgboost": "XGBoost",
-            "xgboost_2022": "XGBoost-2022",
             "xgboost_paper": "XGBoost-Paper",
             "logistic_regression": "LR",
             "ft_transformer": "FT-Trans",

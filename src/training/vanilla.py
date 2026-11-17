@@ -31,7 +31,6 @@ ALL_MODELS = [
     "mambatab_d",
     "mambatab_t",
     "xgboost",
-    "xgboost_2022",
     "xgboost_paper",
     "logistic_regression",
     "ft_transformer",

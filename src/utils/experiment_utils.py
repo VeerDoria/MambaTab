@@ -87,14 +87,23 @@ def generate_run_summary_md(
     models = list(aggregated_results.keys())
 
     # Core metrics to generate summary tables for
-    core_metrics = [
-        ("auroc", "AUROC (Primary Metric)", False),
-        ("accuracy", "Accuracy", False),
-        ("f1_score", "F1-Score", False),
-        ("balanced_accuracy", "Balanced Accuracy", False),
-        ("auprc", "AUPRC (Precision-Recall Area)", False),
-        ("training_time", "Average Training Time (seconds)", True),
-    ]
+    if setting.lower() == "regression":
+        core_metrics = [
+            ("rmse", "RMSE (Root Mean Squared Error — Lower is Better)", False),
+            ("r2", "R² Score (Coefficient of Determination — Higher is Better)", False),
+            ("mae", "MAE (Mean Absolute Error — Lower is Better)", False),
+            ("pearson_r", "Pearson Correlation (r)", False),
+            ("training_time", "Average Training Time (seconds)", True),
+        ]
+    else:
+        core_metrics = [
+            ("auroc", "AUROC (Primary Metric)", False),
+            ("accuracy", "Accuracy", False),
+            ("f1_score", "F1-Score", False),
+            ("balanced_accuracy", "Balanced Accuracy", False),
+            ("auprc", "AUPRC (Precision-Recall Area)", False),
+            ("training_time", "Average Training Time (seconds)", True),
+        ]
 
     for metric_key, metric_title, is_time in core_metrics:
         doc.append(f"## {metric_title}\n")

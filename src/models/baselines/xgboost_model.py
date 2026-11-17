@@ -37,9 +37,10 @@ class XGBoostModel(BaseModel):
         learning_rate: float = 0.1,
         subsample: float = 0.8,
         colsample_bytree: float = 0.8,
-        early_stopping_rounds: int = 10,
+        early_stopping_rounds: Optional[int] = 10,
         random_state: int = 42,
         device: Optional[str] = None,
+        task_type: str = "classification",
     ):
         self.num_features = num_features
         self.n_estimators = n_estimators
@@ -50,6 +51,7 @@ class XGBoostModel(BaseModel):
         self.early_stopping_rounds = early_stopping_rounds
         self.random_state = random_state
         self.device = device
+        self.task_type = task_type.lower().strip()
         self.model = None
         self._is_fitted = False
 
@@ -90,6 +92,9 @@ class XGBoostModel(BaseModel):
             except ImportError:
                 pass
 
+        is_regression = self.task_type == "regression"
+        eval_metric = "rmse" if is_regression else "logloss"
+
         if XGBOOST_AVAILABLE:
             import torch
             xgb_device = self.device or xgb_cfg.get(
@@ -101,7 +106,7 @@ class XGBoostModel(BaseModel):
                 "learning_rate": lr,
                 "subsample": subsample,
                 "colsample_bytree": colsample,
-                "eval_metric": "logloss",
+                "eval_metric": eval_metric,
                 "random_state": self.random_state,
                 "verbosity": 0,
                 "device": xgb_device,
@@ -109,35 +114,69 @@ class XGBoostModel(BaseModel):
             if early_stopping is not None and early_stopping > 0:
                 xgb_kwargs["early_stopping_rounds"] = early_stopping
 
-            self.model = xgb.XGBClassifier(**xgb_kwargs)
-            if early_stopping is not None and early_stopping > 0:
-                self.model.fit(
-                    X_train,
-                    y_train.astype(int),
-                    eval_set=[(X_val, y_val.astype(int))],
-                    verbose=False,
-                )
+            if is_regression:
+                self.model = xgb.XGBRegressor(**xgb_kwargs)
+                if early_stopping is not None and early_stopping > 0:
+                    self.model.fit(
+                        X_train,
+                        y_train.astype(float),
+                        eval_set=[(X_val, y_val.astype(float))],
+                        verbose=False,
+                    )
+                else:
+                    self.model.fit(
+                        X_train,
+                        y_train.astype(float),
+                        verbose=False,
+                    )
             else:
-                self.model.fit(
-                    X_train,
-                    y_train.astype(int),
-                    verbose=False,
-                )
+                self.model = xgb.XGBClassifier(**xgb_kwargs)
+                if early_stopping is not None and early_stopping > 0:
+                    self.model.fit(
+                        X_train,
+                        y_train.astype(int),
+                        eval_set=[(X_val, y_val.astype(int))],
+                        verbose=False,
+                    )
+                else:
+                    self.model.fit(
+                        X_train,
+                        y_train.astype(int),
+                        verbose=False,
+                    )
         else:
             logger.warning(
-                "xgboost package not found; using HistGradientBoostingClassifier as drop-in fallback."
+                "xgboost package not found; using HistGradientBoosting as drop-in fallback."
             )
-            self.model = HistGradientBoostingClassifier(
-                max_iter=n_estimators,
-                max_depth=max_depth,
-                learning_rate=lr,
-                early_stopping=bool(early_stopping and early_stopping > 0),
-                random_state=self.random_state,
-            )
-            self.model.fit(X_train, y_train.astype(int))
+            if is_regression:
+                from sklearn.ensemble import HistGradientBoostingRegressor
+                self.model = HistGradientBoostingRegressor(
+                    max_iter=n_estimators,
+                    max_depth=max_depth,
+                    learning_rate=lr,
+                    early_stopping=bool(early_stopping and early_stopping > 0),
+                    random_state=self.random_state,
+                )
+                self.model.fit(X_train, y_train.astype(float))
+            else:
+                self.model = HistGradientBoostingClassifier(
+                    max_iter=n_estimators,
+                    max_depth=max_depth,
+                    learning_rate=lr,
+                    early_stopping=bool(early_stopping and early_stopping > 0),
+                    random_state=self.random_state,
+                )
+                self.model.fit(X_train, y_train.astype(int))
 
         self._is_fitted = True
         return self
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Predict continuous target (for regression)."""
+        if not self._is_fitted or self.model is None:
+            raise RuntimeError("Model must be fitted before predict.")
+        preds = self.model.predict(X)
+        return preds.ravel().astype(np.float32)
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         """Predict positive class probabilities."""
@@ -147,44 +186,6 @@ class XGBoostModel(BaseModel):
         if probs.shape[1] == 2:
             return probs[:, 1].astype(np.float32)
         return probs.ravel().astype(np.float32)
-
-
-class XGBoost2022Model(XGBoostModel):
-    """XGBoost baseline following the 2022 TransTab / MambaTab paper benchmark setup.
-
-    Key properties:
-      - 100 estimators (classical baseline budget)
-      - CPU execution (device='cpu')
-      - Early stopping on validation set enabled
-      - Evaluated on common feature subset s1 in Feature-Incremental Learning (FIL)
-        as described in Section IV-C and Table III of the MambaTab paper.
-    """
-
-    name: str = "xgboost_2022"
-
-    def __init__(
-        self,
-        num_features: int,
-        n_estimators: int = 100,
-        max_depth: int = 6,
-        learning_rate: float = 0.1,
-        subsample: float = 0.8,
-        colsample_bytree: float = 0.8,
-        early_stopping_rounds: int = 10,
-        random_state: int = 42,
-        device: str = "cpu",
-    ):
-        super().__init__(
-            num_features=num_features,
-            n_estimators=n_estimators,
-            max_depth=max_depth,
-            learning_rate=learning_rate,
-            subsample=subsample,
-            colsample_bytree=colsample_bytree,
-            early_stopping_rounds=early_stopping_rounds,
-            random_state=random_state,
-            device=device,
-        )
 
 
 class XGBoostPaperModel(XGBoostModel):
@@ -210,6 +211,7 @@ class XGBoostPaperModel(XGBoostModel):
         early_stopping_rounds: Optional[int] = None,
         random_state: int = 42,
         device: str = "cpu",
+        task_type: str = "classification",
     ):
         super().__init__(
             num_features=num_features,
@@ -221,5 +223,6 @@ class XGBoostPaperModel(XGBoostModel):
             early_stopping_rounds=early_stopping_rounds,
             random_state=random_state,
             device=device,
+            task_type=task_type,
         )
 

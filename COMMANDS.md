@@ -9,6 +9,7 @@ This document lists all commands to run, evaluate, and benchmark the MambaTab co
 Every time an experiment is launched, the system automatically creates a new isolated run directory (e.g., `run_1`, `run_2`, etc.) to **never overwrite previous results**:
 * Vanilla runs are stored under: `results/vanilla/run_<N>/`
 * FIL runs are stored under: `results/fil/run_<N>/`
+* Regression runs are stored under: `results/regression/run_<N>/`
 * A convenient `latest` pointer in the results folder always points to your most recent run.
 
 Each run folder contains:
@@ -36,15 +37,15 @@ python3 experiments/run_fil.py --models mambatab_d xgboost_paper --datasets cred
 
 Evaluates static tabular classification performance across all datasets and seeds.
 
-### A. Full Benchmark (All 8 Models, 5 Datasets, 5 Seeds = 200 runs)
+### A. Full Benchmark (All 7 Models, 5 Datasets, 5 Seeds = 175 runs)
 ```bash
 python3 experiments/run_vanilla.py
 ```
 *(Add `--download` if running for the first time without pre-cached datasets).*
 
-### B. Compare MambaTab vs. the 3 XGBoost Variants
+### B. Compare MambaTab vs. XGBoost Variants
 ```bash
-python3 experiments/run_vanilla.py --models mambatab_d mambatab_t xgboost xgboost_2022 xgboost_paper
+python3 experiments/run_vanilla.py --models mambatab_d mambatab_t xgboost xgboost_paper
 ```
 
 ### C. Fast Benchmark (3 Seeds instead of 5)
@@ -79,7 +80,7 @@ python3 experiments/run_fil.py
 
 ### B. Compare Dynamic MambaTab vs. Paper Baseline Constraints
 ```bash
-python3 experiments/run_fil.py --models mambatab_d mambatab_t xgboost xgboost_2022 xgboost_paper
+python3 experiments/run_fil.py --models mambatab_d mambatab_t xgboost xgboost_paper
 ```
 
 ### C. Fast FIL Run (1 or 3 Seeds)
@@ -97,7 +98,34 @@ tail -f fil_run.log
 
 ---
 
-## 📊 4. Post-Processing & Table Generation
+## 📈 4. Tabular Regression Benchmark (Separate Experiment)
+
+Evaluates continuous target prediction across **California Housing**, **Abalone**, and **Concrete Compressive Strength**.
+
+### A. Full Regression Benchmark (All 7 Models, 3 Datasets, 5 Seeds = 105 runs)
+```bash
+python3 experiments/run_regression.py --download
+```
+
+### B. Quick Regression Smoke Test (Concrete, 1 seed, MambaTab-D vs. XGBoost Paper)
+```bash
+python3 experiments/run_regression.py --models mambatab_d xgboost_paper --datasets concrete --seeds 1
+```
+
+### C. Specific Models / Datasets
+```bash
+python3 experiments/run_regression.py --models mambatab_d mambatab_t xgboost xgboost_paper --datasets california_housing
+```
+
+### D. Run Regression in Background
+```bash
+nohup python3 experiments/run_regression.py > regression_run.log 2>&1 &
+tail -f regression_run.log
+```
+
+---
+
+## 📊 5. Post-Processing & Table Generation
 
 Generate formatted markdown metric tables and side-by-side paper comparisons from completed runs:
 
@@ -153,13 +181,14 @@ Download `mambatab_results.zip` directly from the **Output** section in the righ
 | `mambatab_d` | **MambaTab-D** (Default) | $D=32, N=32, d_{\text{conv}}=4, M=1$, expansion=2 |
 | `mambatab_t` | **MambaTab-T** (Tuned) | Dataset-specific optimal params from Paper Table VI |
 | `xgboost` | **Modern XGBoost** (2026) | 300 estimators, early stopping, GPU accelerated |
-| `xgboost_2022` | **XGBoost 2022** (TransTab) | 100 estimators, early stopping enabled, CPU, $s_1$-constrained in FIL |
 | `xgboost_paper` | **XGBoost Paper Baseline** | 100 estimators, **no early stopping**, CPU, $s_1$-constrained in FIL |
 | `logistic_regression` | **Logistic Regression** | $C=1.0$, L-BFGS solver, max 1000 iterations |
 | `ft_transformer` | **FT-Transformer** | Feature Tokenizer + Transformer (NeurIPS 2021) |
 | `dcn` | **Deep & Cross Network** | Cross polynomial interaction layers + Deep MLP |
 
 ### Available Datasets (`--datasets`)
+
+**Classification Datasets:**
 | Identifier | Abbreviation | Dataset Name | OpenML ID | Features | Samples |
 | :--- | :---: | :--- | :---: | :---: | :---: |
 | `adult` | **AD** | Adult Census Income | 1590 | 14 | 48,842 |
@@ -167,6 +196,13 @@ Download `mambatab_results.zip` directly from the **Output** section in the righ
 | `blastchar` | **BL** | Telco Customer Churn | 42178 | 19 | 7,043 |
 | `credit_g` | **CG** | German Credit Risk | 31 | 20 | 1,000 |
 | `cylinder_bands` | **CB** | Cylinder Bands | 6332 | 39 | 540 |
+
+**Regression Datasets:**
+| Identifier | Abbreviation | Dataset Name | Source / ID | Features | Samples | Target Variable |
+| :--- | :---: | :--- | :---: | :---: | :---: | :--- |
+| `california_housing` | **CH** | California Housing | Scikit / 531 | 8 | 20,640 | `MedHouseVal` |
+| `abalone` | **AB** | Abalone | OpenML 183 | 8 | 4,177 | `Class_number_of_rings` |
+| `concrete` | **CO** | Concrete Compressive Strength | OpenML 4353 | 8 | 1,030 | `compressive_strength` |
 
 ### CLI Arguments Summary
 | Argument | Type | Default | Description |
