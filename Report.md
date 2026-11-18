@@ -314,4 +314,4 @@ As demonstrated in the empirical research of Shwartz-Ziv & Armon (2021), the bes
 ## 6. Conclusion
 In summary, our extensive empirical evaluation clarifies both the boundaries and the unique strengths of MambaTab:
 - On static vanilla tabular classification and regression, XGBoost remains the superior standalone engine due to its axis-aligned inductive bias and resistance to uninformative feature blending.
-- However, for *dynamic environments requiring Feature-Incremental Learning (FIL), parameter-constrained deployments, unlabeled pre-training (SSL), and multimodal integration, MambaTab provides a mathematically rigorous, computationally lightweight, and scalable foundation that tree models structurally cannot match.
+- However, for dynamic environments requiring Feature-Incremental Learning (FIL), parameter-constrained deployments, unlabeled pre-training (SSL), and multimodal integration, MambaTab provides a mathematically rigorous, computationally lightweight, and scalable foundation that tree models structurally cannot match.
