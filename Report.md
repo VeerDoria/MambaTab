@@ -1,15 +1,12 @@
 # Evaluation of MambaTab on Tabular Classification and Regression
-
 ## Submitted By : 
 Veer Doria - 240041039  
 Tanish Yadav - 240041036   
 Aniket Khandelwal - 240041003  
-
+[Github Repo](https://github.com/VeerDoria/MambaTab)
 ## Instructor : 
 #### Prof. M.Tanveer
-
 ## 1. Introduction, Architecture and Approach
-
 ### 1.1 Introduction
 Tabular data represents the backbone of machine learning applications across enterprise domains, including finance, healthcare, fraud detection, and recommendation systems. While deep learning architectures (Transformers, CNNs) have achieved undisputed hegemony in computer vision, speech, and natural language processing, gradient-boosted decision tree (GBDT) algorithms—most prominently XGBoost, LightGBM, and CatBoost—continue to dominate standard tabular benchmarks. 
 
@@ -56,22 +53,22 @@ MambaTab processes tabular data in three compact stages: compressing raw columns
 
 **Stage 1: Data Preprocessing & Embedding Learner**
 
-* **Joint Feature Projection**: Instead of turning each column into a separate token, a linear layer compresses all $J$ input features into one vector of size $d_{\text{model}} = 32$: $\mathbf{z} = \mathbf{W}_{\text{in}}\mathbf{x} + \mathbf{b}_{\text{in}}$.
-* **Feature-Incremental Learning (FIL)**: When $\Delta J$ new columns are added later, new weight columns $\mathbf{W}_{\text{in}}^{(\Delta)}$ are appended to $\mathbf{W}_{\text{in}}$ while old weights stay frozen, preventing catastrophic forgetting.
-* **Stabilization & Reshaping**: LayerNorm and ReLU normalize the vector into a 1-token sequence $\mathbf{u} = \text{ReLU}(\text{LayerNorm}(\mathbf{z}))$ of shape $\text{Batch} \times 1 \times 32$.
+Joint Feature Projection**: Instead of turning each column into a separate token, a linear layer compresses all $J$ input features into one vector of size $d_{\text{model}} = 32$: $\mathbf{z} = \mathbf{W}_{\text{in}}\mathbf{x} + \mathbf{b}_{\text{in}}$.
+Feature-Incremental Learning (FIL)**: When $\Delta J$ new columns are added later, new weight columns $\mathbf{W}_{\text{in}}^{(\Delta)}$ are appended to $\mathbf{W}_{\text{in}}$ while old weights stay frozen, preventing catastrophic forgetting.
+Stabilization & Reshaping**: LayerNorm and ReLU normalize the vector into a 1-token sequence $\mathbf{u} = \text{ReLU}(\text{LayerNorm}(\mathbf{z}))$ of shape $\text{Batch} \times 1 \times 32$.
 
 **Stage 2: Cascading Selective Mamba Blocks**
 
-* **Selective Parameters**: Unlike static state-space models, Mamba computes its input matrix $\mathbf{B}_t$, output matrix $\mathbf{C}_t$, and step size $\Delta_t$ dynamically as linear projections of the current input $\mathbf{u}_t$.
-* **Discretization**: Continuous system weights $(\mathbf{A}, \mathbf{B})$ are converted into discrete step weights $(\overline{\mathbf{A}}_t, \overline{\mathbf{B}}_t)$ using step size $\Delta_t$ (such as $\overline{\mathbf{A}}_t = \exp(\Delta_t \mathbf{A})$).
-* **State Update**: The SSM updates its hidden state (expanded by factor $N = 32$) and computes outputs via $h_t = \overline{\mathbf{A}}_t h_{t-1} + \overline{\mathbf{B}}_t u_t$ and $y_t = \mathbf{C}_t h_t$.
-* **Dual-Branch Gating**: Each block splits $\mathbf{u}$ into a main path (Conv1D $\to$ SiLU $\to$ SSM) and a SiLU gate, multiplying them together: $\mathbf{y}_{\text{gated}} = \text{SSM}(\text{SiLU}(\text{Conv1D}(\mathbf{W}_1 \mathbf{u}))) \odot \text{SiLU}(\mathbf{W}_{\text{gate}} \mathbf{u})$.
-* **Residual Cascade**: A linear projection and skip connection pass the features across $M$ stacked blocks (default $M = 1$): $\mathbf{h}^{(m)} = \mathbf{h}^{(m-1)} + \text{MambaBlock}_m(\mathbf{h}^{(m-1)})$.
+Selective Parameters**: Unlike static state-space models, Mamba computes its input matrix $\mathbf{B}_t$, output matrix $\mathbf{C}_t$, and step size $\Delta_t$ dynamically as linear projections of the current input $\mathbf{u}_t$.
+Discretization**: Continuous system weights $(\mathbf{A}, \mathbf{B})$ are converted into discrete step weights $(\overline{\mathbf{A}}_t, \overline{\mathbf{B}}_t)$ using step size $\Delta_t$ (such as $\overline{\mathbf{A}}_t = \exp(\Delta_t \mathbf{A})$).
+State Update**: The SSM updates its hidden state (expanded by factor $N = 32$) and computes outputs via $h_t = \overline{\mathbf{A}}_t h_{t-1} + \overline{\mathbf{B}}_t u_t$ and $y_t = \mathbf{C}_t h_t$.
+Dual-Branch Gating**: Each block splits $\mathbf{u}$ into a main path (Conv1D $\to$ SiLU $\to$ SSM) and a SiLU gate, multiplying them together: $\mathbf{y}_{\text{gated}} = \text{SSM}(\text{SiLU}(\text{Conv1D}(\mathbf{W}_1 \mathbf{u}))) \odot \text{SiLU}(\mathbf{W}_{\text{gate}} \mathbf{u})$.
+Residual Cascade**: A linear projection and skip connection pass the features across $M$ stacked blocks (default $M = 1$): $\mathbf{h}^{(m)} = \mathbf{h}^{(m-1)} + \text{MambaBlock}_m(\mathbf{h}^{(m-1)})$.
 
 **Stage 3: Output Prediction Head**
 
-* **Binary Classification**: Maps the final representation $\mathbf{h}^{(M)}$ to a probability via a sigmoid activation $\hat{y} = \sigma(\mathbf{W}_{\text{head}}\mathbf{h}^{(M)} + b_{\text{head}}) \in (0, 1)$, trained with Binary Cross-Entropy (BCE) loss.
-* **Continuous Regression**: Drops the sigmoid to output a raw scalar $\hat{y} = \mathbf{W}_{\text{head}}\mathbf{h}^{(M)} + b_{\text{head}} \in \mathbb{R}$, trained directly with Mean Squared Error (MSE) loss.
+Binary Classification**: Maps the final representation $\mathbf{h}^{(M)}$ to a probability via a sigmoid activation $\hat{y} = \sigma(\mathbf{W}_{\text{head}}\mathbf{h}^{(M)} + b_{\text{head}}) \in (0, 1)$, trained with Binary Cross-Entropy (BCE) loss.
+Continuous Regression**: Drops the sigmoid to output a raw scalar $\hat{y} = \mathbf{W}_{\text{head}}\mathbf{h}^{(M)} + b_{\text{head}} \in \mathbb{R}$, trained directly with Mean Squared Error (MSE) loss.
 
 ## 2. Experimental Results
 
@@ -272,8 +269,6 @@ To evaluate fidelity, we directly compare our experimental findings against the 
        - On **Blastchar**: MambaTab-T (**0.8339**) outperforms XGBoost-Paper (**0.7485**) by **+0.0854**.
        - Across all datasets, MambaTab-T achieves a mean AUROC of **0.8123** versus **0.7789** for XGBoost-Paper.
 
----
-
 ## 4. MambaTab's Performance in Regression
 
 ### 4.1 Limitation in Continuous Regression
@@ -291,9 +286,9 @@ Vanilla MambaTab projects all continuous features simultaneously through a singl
 **2. Collapsed Token Sequence Length ($L = 1$)**
 Selective SSMs are built to model sequential dynamics across token steps $t = 1, \dots, L$, but fusing all features into one vector beforehand forces a sequence length of $L = 1$:
 
-* **Trivial Convolution**: The causal 1D convolution ($\text{kernel\_size} = 4$) degenerates into simple padding operations.
-* **Single-Step Recurrence**: The selective state update ($h_t = \overline{\mathbf{A}} h_{t-1} + \overline{\mathbf{B}} u_t$) executes for only one transition step.
-* **No Feature-to-Feature Scanning**: Instead of modeling content-dependent interactions between features along a sequence axis, the SSM acts merely as a non-linear gating bottleneck.
+Trivial Convolution**: The causal 1D convolution ($\text{kernel\_size} = 4$) degenerates into simple padding operations.
+Single-Step Recurrence**: The selective state update ($h_t = \overline{\mathbf{A}} h_{t-1} + \overline{\mathbf{B}} u_t$) executes for only one transition step.
+No Feature-to-Feature Scanning**: Instead of modeling content-dependent interactions between features along a sequence axis, the SSM acts merely as a non-linear gating bottleneck.
 
 **3. Smoothness Bias on High-Frequency Targets**
 While binary classification predicts coarse probabilities bounded in $[0, 1]$, continuous regression requires fitting target surfaces with sharp local plateaus, discontinuities, and multi-modal distributions. Because smooth activations (ReLU, SiLU) bias neural networks toward low-frequency functions, MambaTab over-smooths steep local derivatives (such as California housing prices or concrete fracture strengths), increasing Mean Squared Error (MSE).
