@@ -8,7 +8,7 @@ Aniket Khandelwal - 240041003
 #### Prof. M.Tanveer
 ## 1. Introduction, Architecture and Approach
 ### 1.1 Introduction
-Tabular data represents the backbone of machine learning applications across enterprise domains, including finance, healthcare, fraud detection, and recommendation systems. While deep learning architectures (Transformers, CNNs) have achieved undisputed hegemony in computer vision, speech, and natural language processing, gradient-boosted decision tree (GBDT) algorithms—most prominently XGBoost, LightGBM, and CatBoost—continue to dominate standard tabular benchmarks. 
+Tabular data represents the backbone of machine learning applications across enterprise domains, including finance, healthcare, fraud detection, and recommendation systems. While deep learning architectures (Transformers, CNNs) have achieved undisputed hegemony in computer vision, speech, and natural language processing, gradient-boosted decision tree (GBDT) algorithms, most prominently XGBoost, LightGBM, and CatBoost, continue to dominate standard tabular benchmarks. 
 
 Recently, **MambaTab** (Ahamed & Cheng, IEEE MIPR 2024) was proposed as an innovative, plug-and-play deep learning architecture for tabular data based on **Selective Structured State-Space Models (SSMs)** . MambaTab addresses two fundamental shortcomings of existing tabular deep learning architectures (such as FT-Transformer, SAINT, and TabNet):
 1. **Quadratic Complexity**: Standard self-attention scales quadratically with sequence length ($\mathcal{O}(L^2)$), necessitating millions of parameters and substantial memory footprints. MambaTab achieves linear computational complexity ($\mathcal{O}(L)$) with sub-quadratic parameter scaling.
@@ -45,7 +45,7 @@ flowchart TD
 
 Across all domains, numerical variables undergo min-max normalization into $[0, 1]$, missing values are imputed using median (numerical) or modal (categorical) strategies, and categorical variables are mapped using integer label encodings.
 ### 1.3 Detailed Architecture and Workflow
-The operational workflow of MambaTab is illustrated in the architectural schematic (`architecture.png`) and detailed below across its three principal stages:
+The operational workflow of MambaTab is illustrated in detail below across its three principal stages:
 
 ![MambaTab Architecture](architecture.png)
 
@@ -53,22 +53,22 @@ MambaTab processes tabular data in three compact stages: compressing raw columns
 
 **Stage 1: Data Preprocessing & Embedding Learner**
 
-Joint Feature Projection**: Instead of turning each column into a separate token, a linear layer compresses all $J$ input features into one vector of size $d_{\text{model}} = 32$: $\mathbf{z} = \mathbf{W}_{\text{in}}\mathbf{x} + \mathbf{b}_{\text{in}}$.
+Joint Feature Projection: Instead of turning each column into a separate token, a linear layer compresses all $J$ input features into one vector of size $d_{\text{model}} = 32$: $\mathbf{z} = \mathbf{W}_{\text{in}}\mathbf{x} + \mathbf{b}_{\text{in}}$.
 Feature-Incremental Learning (FIL)**: When $\Delta J$ new columns are added later, new weight columns $\mathbf{W}_{\text{in}}^{(\Delta)}$ are appended to $\mathbf{W}_{\text{in}}$ while old weights stay frozen, preventing catastrophic forgetting.
 Stabilization & Reshaping**: LayerNorm and ReLU normalize the vector into a 1-token sequence $\mathbf{u} = \text{ReLU}(\text{LayerNorm}(\mathbf{z}))$ of shape $\text{Batch} \times 1 \times 32$.
 
 **Stage 2: Cascading Selective Mamba Blocks**
 
-Selective Parameters**: Unlike static state-space models, Mamba computes its input matrix $\mathbf{B}_t$, output matrix $\mathbf{C}_t$, and step size $\Delta_t$ dynamically as linear projections of the current input $\mathbf{u}_t$.
-Discretization**: Continuous system weights $(\mathbf{A}, \mathbf{B})$ are converted into discrete step weights $(\overline{\mathbf{A}}_t, \overline{\mathbf{B}}_t)$ using step size $\Delta_t$ (such as $\overline{\mathbf{A}}_t = \exp(\Delta_t \mathbf{A})$).
-State Update**: The SSM updates its hidden state (expanded by factor $N = 32$) and computes outputs via $h_t = \overline{\mathbf{A}}_t h_{t-1} + \overline{\mathbf{B}}_t u_t$ and $y_t = \mathbf{C}_t h_t$.
-Dual-Branch Gating**: Each block splits $\mathbf{u}$ into a main path (Conv1D $\to$ SiLU $\to$ SSM) and a SiLU gate, multiplying them together: $\mathbf{y}_{\text{gated}} = \text{SSM}(\text{SiLU}(\text{Conv1D}(\mathbf{W}_1 \mathbf{u}))) \odot \text{SiLU}(\mathbf{W}_{\text{gate}} \mathbf{u})$.
-Residual Cascade**: A linear projection and skip connection pass the features across $M$ stacked blocks (default $M = 1$): $\mathbf{h}^{(m)} = \mathbf{h}^{(m-1)} + \text{MambaBlock}_m(\mathbf{h}^{(m-1)})$.
+Selective Parameters: Unlike static state-space models, Mamba computes its input matrix $\mathbf{B}_t$, output matrix $\mathbf{C}_t$, and step size $\Delta_t$ dynamically as linear projections of the current input $\mathbf{u}_t$.
+Discretization: Continuous system weights $(\mathbf{A}, \mathbf{B})$ are converted into discrete step weights $(\overline{\mathbf{A}}_t, \overline{\mathbf{B}}_t)$ using step size $\Delta_t$ (such as $\overline{\mathbf{A}}_t = \exp(\Delta_t \mathbf{A})$).
+State Update: The SSM updates its hidden state (expanded by factor $N = 32$) and computes outputs via $h_t = \overline{\mathbf{A}}_t h_{t-1} + \overline{\mathbf{B}}_t u_t$ and $y_t = \mathbf{C}_t h_t$.
+Dual-Branch Gating: Each block splits $\mathbf{u}$ into a main path (Conv1D $\to$ SiLU $\to$ SSM) and a SiLU gate, multiplying them together: $\mathbf{y}_{\text{gated}} = \text{SSM}(\text{SiLU}(\text{Conv1D}(\mathbf{W}_1 \mathbf{u}))) \odot \text{SiLU}(\mathbf{W}_{\text{gate}} \mathbf{u})$.
+Residual Cascade: A linear projection and skip connection pass the features across $M$ stacked blocks (default $M = 1$): $\mathbf{h}^{(m)} = \mathbf{h}^{(m-1)} + \text{MambaBlock}_m(\mathbf{h}^{(m-1)})$.
 
 **Stage 3: Output Prediction Head**
 
-Binary Classification**: Maps the final representation $\mathbf{h}^{(M)}$ to a probability via a sigmoid activation $\hat{y} = \sigma(\mathbf{W}_{\text{head}}\mathbf{h}^{(M)} + b_{\text{head}}) \in (0, 1)$, trained with Binary Cross-Entropy (BCE) loss.
-Continuous Regression**: Drops the sigmoid to output a raw scalar $\hat{y} = \mathbf{W}_{\text{head}}\mathbf{h}^{(M)} + b_{\text{head}} \in \mathbb{R}$, trained directly with Mean Squared Error (MSE) loss.
+Binary Classification: Maps the final representation $\mathbf{h}^{(M)}$ to a probability via a sigmoid activation $\hat{y} = \sigma(\mathbf{W}_{\text{head}}\mathbf{h}^{(M)} + b_{\text{head}}) \in (0, 1)$, trained with Binary Cross-Entropy (BCE) loss.
+Continuous Regression: Drops the sigmoid to output a raw scalar $\hat{y} = \mathbf{W}_{\text{head}}\mathbf{h}^{(M)} + b_{\text{head}} \in \mathbb{R}$, trained directly with Mean Squared Error (MSE) loss.
 
 ## 2. Experimental Results
 
@@ -237,7 +237,7 @@ This empirical margin is neither anomalous nor an implementation artifact. Rathe
 Three core inductive biases and optimization differences explain why decision trees outperform MambaTab on standard tabular benchmarks:
 
 **1. Smoothness Bias**
-Neural networks—including MambaTab with its continuous SiLU activations and linear layers—exhibit a spectral bias toward smooth, low-frequency functions. However, tabular decision boundaries typically follow sharp, axis-aligned step functions and threshold rules (such as age > 50 and capital_gain > 5000). While decision trees naturally fit piecewise-constant functions with sharp discontinuities, neural networks over-smooth these irregular boundaries. Grinsztajn et al. confirmed this by applying a Gaussian kernel smoother to training targets, which sharply degraded tree accuracy while leaving neural networks largely unaffected.
+Neural networks, including MambaTab with its continuous SiLU activations and linear layers, exhibit a spectral bias toward smooth, low-frequency functions. However, tabular decision boundaries typically follow sharp, axis-aligned step functions and threshold rules (such as age > 50 and capital_gain > 5000). While decision trees naturally fit piecewise-constant functions with sharp discontinuities, neural networks over-smooth these irregular boundaries. Grinsztajn et al. confirmed this by applying a Gaussian kernel smoother to training targets, which sharply degraded tree accuracy while leaving neural networks largely unaffected.
 
 **2. Uninformative Features**
 Real-world tabular datasets frequently contain noisy or irrelevant columns. Decision trees perform automatic greedy feature selection, simply ignoring columns that do not reduce split impurity. Conversely, MambaTab assigns dense projection weights in $\mathbf{W}_{\text{in}}$ to every input column, allowing noise to corrupt the shared representation. Grinsztajn et al. demonstrated that adding uninformative features severely degrades dense neural networks while barely affecting tree ensembles.
@@ -286,9 +286,9 @@ Vanilla MambaTab projects all continuous features simultaneously through a singl
 **2. Collapsed Token Sequence Length ($L = 1$)**
 Selective SSMs are built to model sequential dynamics across token steps $t = 1, \dots, L$, but fusing all features into one vector beforehand forces a sequence length of $L = 1$:
 
-Trivial Convolution**: The causal 1D convolution ($\text{kernel\_size} = 4$) degenerates into simple padding operations.
-Single-Step Recurrence**: The selective state update ($h_t = \overline{\mathbf{A}} h_{t-1} + \overline{\mathbf{B}} u_t$) executes for only one transition step.
-No Feature-to-Feature Scanning**: Instead of modeling content-dependent interactions between features along a sequence axis, the SSM acts merely as a non-linear gating bottleneck.
+Trivial Convolution: The causal 1D convolution ($\text{kernel\_size} = 4$) degenerates into simple padding operations.
+Single-Step Recurrence: The selective state update ($h_t = \overline{\mathbf{A}} h_{t-1} + \overline{\mathbf{B}} u_t$) executes for only one transition step.
+No Feature-to-Feature Scanning: Instead of modeling content-dependent interactions between features along a sequence axis, the SSM acts merely as a non-linear gating bottleneck.
 
 **3. Smoothness Bias on High-Frequency Targets**
 While binary classification predicts coarse probabilities bounded in $[0, 1]$, continuous regression requires fitting target surfaces with sharp local plateaus, discontinuities, and multi-modal distributions. Because smooth activations (ReLU, SiLU) bias neural networks toward low-frequency functions, MambaTab over-smooths steep local derivatives (such as California housing prices or concrete fracture strengths), increasing Mean Squared Error (MSE).
@@ -300,7 +300,7 @@ Given XGBoost's empirical dominance on static tables, a central architectural qu
 The justification rests on five foundational capabilities where tree-based algorithms are structurally incapable of operating:
 ### 5.1 Native Feature-Incremental Learning (FIL)
 In production environments (e.g., continuous financial underwriting or real-time clinical monitoring), feature schemas are dynamic: new sensors, telemetry features, or third-party signals become available over time.
-- **Tree Ensemble Impasse**: Decision tree splits are permanently hardcoded to a fixed coordinate schema. When new features arrive, a GBDT cannot incrementally incorporate them into existing trees. The practitioner must either discard the new features or discard the entire historical ensemble and retrain from scratch across millions of historical rows—a process that is computationally prohibitive, latency-intensive, and impossible in streaming environments.
+- **Tree Ensemble Impasse**: Decision tree splits are permanently hardcoded to a fixed coordinate schema. When new features arrive, a GBDT cannot incrementally incorporate them into existing trees. The practitioner must either discard the new features or discard the entire historical ensemble and retrain from scratch across millions of historical rows, a process that is computationally prohibitive, latency-intensive, and impossible in streaming environments.
 - **MambaTab Advantage**: MambaTab handles incremental feature arrival natively. By simply expanding the input dimension of the first-layer Embedding Learner while freezing all downstream Mamba blocks and classification layers, MambaTab absorbs new features immediately. As demonstrated in our FIL experiments, MambaTab outperforms frozen tree baselines by over $+0.09$ AUROC on real-world datasets like Adult and Income.
 
 ### 5.2 Memory Efficiency
