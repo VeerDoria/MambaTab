@@ -3,7 +3,8 @@
 Veer Doria - 240041039  
 Tanish Yadav - 240041036   
 Aniket Khandelwal - 240041003  
-Team Number - 20  
+Team Number - 8   
+Project Number - 17   
 [Github Repo](https://github.com/VeerDoria/MambaTab)
 ## Instructor : 
 #### Prof. M.Tanveer
