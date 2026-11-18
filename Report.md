@@ -309,7 +309,7 @@ In production environments (e.g., continuous financial underwriting or real-time
 While Tabular Transformers (FT-Transformer, SAINT, TransTab) also attempt to address deep tabular modeling, they do so at extreme computational cost:
 - TransTab requires **$4.2\text{M}$ learnable parameters** and scales quadratically ($\mathcal{O}(L^2)$) with the number of features.
 - FT-Transformer deployed in our benchmark requires **$176\text{K}$ parameters**.
-- **MambaTab operates with only $\sim 13\text{K}$ parameters** in its default configuration—a **$10\times$ to $300\times$ reduction** in parameter footprint.
+- **MambaTab operates with only $\sim 13\text{K}$ parameters** in its default configuration a **$10\times$ to $300\times$ reduction** in parameter footprint.
 Because Mamba scales linearly ($\mathcal{O}(L)$), it enables deep tabular modeling on edge devices, mobile processors, and memory-constrained GPUs (such as laptops and embedded industrial boards) where Transformers exceed GPU memory limits.
 ### 5.3 Ensembling
 As demonstrated in the empirical research of Shwartz-Ziv & Armon (2021), the best-performing tabular models across industry benchmarks are not standalone models, but hybrid ensembles combining tree-based models with neural networks. Because XGBoost (orthogonal step functions) and Mamba (smooth continuous state transitions) learn completely orthogonal representations, combining their predictions via validation-loss weighting consistently outperforms both pure XGBoost ensembles and pure deep learning ensembles.
